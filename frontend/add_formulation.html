@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add Formulation</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/frontend/css/styles.css" />
+  </head>
+  <body data-page="add-formulation">
+    <nav class="navbar navbar-expand-lg navbar-dark app-navbar shadow-sm">
+      <div class="container">
+        <a class="navbar-brand fw-semibold" href="/">PVC Formulation ERP</a>
+        <div class="navbar-nav ms-auto gap-2">
+          <a class="nav-link" href="/">Dashboard</a>
+          <a class="nav-link active" href="/add-formulation">Add Formulation</a>
+          <a class="nav-link" href="/materials-page">Materials</a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-4">
+      <div class="row g-4">
+        <div class="col-lg-7">
+          <section class="panel-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <div>
+                <h1 id="formulationPageTitle" class="h3 mb-1">Add Formulation</h1>
+                <p id="formulationPageSubtitle" class="text-muted mb-0">Build a formulation and preview costing live.</p>
+              </div>
+              <a id="backToDashboard" href="/" class="btn btn-outline-secondary btn-sm d-none">Back to Dashboard</a>
+            </div>
+
+            <div id="formulationAlert" class="alert d-none" role="alert"></div>
+
+            <form id="formulationForm" class="row g-3">
+              <div class="col-md-6">
+                <label for="formulationName" class="form-label">Name</label>
+                <input id="formulationName" class="form-control" required />
+              </div>
+              <div class="col-md-3">
+                <label for="formulationType" class="form-label">Type</label>
+                <select id="formulationType" class="form-select" required>
+                  <option value="Garden">Garden</option>
+                  <option value="Braided">Braided</option>
+                  <option value="Recycled">Recycled</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label for="formulationSeason" class="form-label">Season</label>
+                <select id="formulationSeason" class="form-select" required>
+                  <option value="Summer">Summer</option>
+                  <option value="Winter">Winter</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="fixedProfit" class="form-label">Fixed Profit</label>
+                <input id="fixedProfit" type="number" step="0.01" min="0" class="form-control" value="0" required />
+              </div>
+              <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="isFor" checked />
+                  <label class="form-check-label" for="isFor">Without FOR</label>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h2 class="h5 mb-0">Materials</h2>
+                  <button id="addItemRow" type="button" class="btn btn-outline-primary btn-sm">Add Row</button>
+                </div>
+                <div id="itemsContainer" class="d-grid gap-3"></div>
+              </div>
+
+              <div class="col-12 d-flex gap-2">
+                <button id="formulationSubmitButton" type="submit" class="btn btn-primary">Save Formulation</button>
+                <button id="previewButton" type="button" class="btn btn-outline-secondary">Refresh Preview</button>
+              </div>
+            </form>
+          </section>
+        </div>
+
+        <div class="col-lg-5">
+          <section class="panel-card p-4 position-sticky top-0">
+            <h2 class="h4 mb-3">Live Preview</h2>
+            <div id="previewLoader" class="text-center py-4 d-none">
+              <div class="spinner-border text-primary" role="status"></div>
+            </div>
+            <div id="previewError" class="alert alert-warning d-none mb-3"></div>
+            <div class="preview-grid" id="previewGrid">
+              <div class="preview-item">
+                <span>Total Qty</span>
+                <strong id="previewTotalQty">0.00</strong>
+              </div>
+              <div class="preview-item">
+                <span>Total Amount</span>
+                <strong id="previewTotalAmount">₹0.00</strong>
+              </div>
+              <div class="preview-item">
+                <span>Price / Kg</span>
+                <strong id="previewPricePerKg">₹0.00</strong>
+              </div>
+              <div class="preview-item">
+                <span>Misc</span>
+                <strong id="previewMisc">₹0.00</strong>
+              </div>
+              <div class="preview-item">
+                <span>Final Cost</span>
+                <strong id="previewFinalCost">₹0.00</strong>
+              </div>
+              <div class="preview-item">
+                <span>Sale Price</span>
+                <strong id="previewSalePrice">₹0.00</strong>
+              </div>
+              <div class="preview-item">
+                <span>Profit</span>
+                <strong id="previewProfit">₹0.00</strong>
+              </div>
+              <div class="preview-item">
+                <span>Profit % Sale</span>
+                <strong id="previewProfitPercent">0.00%</strong>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <script src="/frontend/js/api.js"></script>
+    <script src="/frontend/js/main.js"></script>
+  </body>
+</html>

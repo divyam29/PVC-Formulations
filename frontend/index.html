@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PVC Formulation Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/frontend/css/styles.css" />
+  </head>
+  <body data-page="dashboard">
+    <nav class="navbar navbar-expand-lg navbar-dark app-navbar shadow-sm">
+      <div class="container">
+        <a class="navbar-brand fw-semibold" href="/">PVC Formulation ERP</a>
+        <div class="navbar-nav ms-auto gap-2">
+          <a class="nav-link active" href="/">Dashboard</a>
+          <a class="nav-link" href="/add-formulation">Add Formulation</a>
+          <a class="nav-link" href="/materials-page">Materials</a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-4">
+      <section class="hero-card p-4 p-lg-5 mb-4">
+        <div class="row align-items-center g-4">
+          <div class="col-lg-8">
+            <span class="badge text-bg-light text-uppercase tracking">Operations Dashboard</span>
+            <h1 class="display-6 mt-3 mb-2">PVC pipe formulation costing</h1>
+            <p class="lead mb-0 text-secondary-emphasis">
+              Track formulation performance, inspect composition instantly, and update raw material rates from one screen.
+            </p>
+          </div>
+          <div class="col-lg-4">
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="metric-card">
+                  <span class="metric-label">Formulations</span>
+                  <strong id="summaryFormulations">0</strong>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="metric-card">
+                  <span class="metric-label">Avg Sale</span>
+                  <strong id="summarySalePrice">₹0.00</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="row g-4">
+        <div class="col-xl-8">
+          <section class="panel-card p-4 h-100">
+            <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
+              <div>
+                <h2 class="h4 mb-1">Formulations</h2>
+                <p class="text-muted mb-0">Click any row to preview the full formulation breakdown.</p>
+              </div>
+              <div class="d-flex flex-wrap gap-2">
+                <select id="filterType" class="form-select">
+                  <option value="">All Types</option>
+                  <option value="Garden">Garden</option>
+                  <option value="Braided">Braided</option>
+                  <option value="Recycled">Recycled</option>
+                </select>
+                <select id="filterSeason" class="form-select">
+                  <option value="">All Seasons</option>
+                  <option value="Summer">Summer</option>
+                  <option value="Winter">Winter</option>
+                </select>
+                <button id="applyFilters" class="btn btn-primary">Apply</button>
+              </div>
+            </div>
+
+            <div id="dashboardAlert" class="alert alert-danger d-none" role="alert"></div>
+
+            <div id="dashboardLoader" class="text-center py-5 d-none">
+              <div class="spinner-border text-primary" role="status"></div>
+              <p class="mt-3 text-muted mb-0">Loading formulations...</p>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table align-middle">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Season</th>
+                    <th>Without FOR</th>
+                    <th>Final Cost</th>
+                    <th>Sale Price</th>
+                    <th>Profit %</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="formulationsTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center text-muted py-5">No formulations found.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div class="col-xl-4">
+          <section class="panel-card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+              <div>
+                <h2 class="h4 mb-1">Formulation Detail</h2>
+                <p class="text-muted mb-0">Selected formula, cost stack, and material composition.</p>
+              </div>
+              <a id="detailEditLink" href="/add-formulation" class="btn btn-sm btn-outline-primary d-none">Edit</a>
+            </div>
+
+            <div id="detailEmpty" class="text-muted py-5 text-center">
+              Select a formulation to inspect quantities, pricing, and raw materials.
+            </div>
+
+            <div id="detailPanel" class="d-none">
+              <div class="detail-header mb-3">
+                <h3 id="detailName" class="h5 mb-1"></h3>
+                <div class="d-flex flex-wrap gap-2">
+                  <span id="detailType" class="badge text-bg-primary"></span>
+                  <span id="detailSeason" class="badge text-bg-light"></span>
+                  <span id="detailWithoutFor" class="badge"></span>
+                </div>
+              </div>
+
+              <div class="preview-grid mb-4">
+                <div class="preview-item">
+                  <span>Total Qty</span>
+                  <strong id="detailTotalQty">0.00</strong>
+                </div>
+                <div class="preview-item">
+                  <span>Total Amount</span>
+                  <strong id="detailTotalAmount">₹0.00</strong>
+                </div>
+                <div class="preview-item">
+                  <span>Price / Kg</span>
+                  <strong id="detailPricePerKg">₹0.00</strong>
+                </div>
+                <div class="preview-item">
+                  <span>Misc</span>
+                  <strong id="detailMisc">₹0.00</strong>
+                </div>
+                <div class="preview-item">
+                  <span>Final Cost</span>
+                  <strong id="detailFinalCost">₹0.00</strong>
+                </div>
+                <div class="preview-item">
+                  <span>Sale Price</span>
+                  <strong id="detailSalePrice">₹0.00</strong>
+                </div>
+                <div class="preview-item">
+                  <span>Fixed Profit</span>
+                  <strong id="detailFixedProfit">₹0.00</strong>
+                </div>
+                <div class="preview-item">
+                  <span>Profit % Sale</span>
+                  <strong id="detailProfitPercent">0.00%</strong>
+                </div>
+              </div>
+
+              <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h3 class="h6 mb-0">Materials Used</h3>
+                  <span id="detailMaterialCount" class="text-muted small"></span>
+                </div>
+                <div id="detailItems" class="detail-items"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <section class="panel-card p-4 mt-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+          <div>
+            <h2 class="h4 mb-1">Raw Material Cost Control</h2>
+            <p class="text-muted mb-0">Update unit price here. GST and extra can be changed only from the materials edit screen.</p>
+          </div>
+        </div>
+
+        <div id="dashboardMaterialsAlert" class="alert d-none" role="alert"></div>
+
+        <div id="dashboardMaterialsLoader" class="text-center py-4 d-none">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-3 text-muted mb-0">Loading materials...</p>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Unit Price</th>
+                <th>GST %</th>
+                <th>Extra</th>
+                <th>Amount / Kg</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="dashboardMaterialsTableBody">
+              <tr>
+                <td colspan="6" class="text-center text-muted py-5">No materials found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="/frontend/js/api.js"></script>
+    <script src="/frontend/js/main.js"></script>
+  </body>
+</html>
