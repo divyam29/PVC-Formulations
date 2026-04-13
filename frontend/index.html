@@ -34,16 +34,35 @@
           </div>
           <div class="col-lg-4">
             <div class="row g-3">
-              <div class="col-6">
+              <div class="col-6 col-md-4 col-lg-6">
                 <div class="metric-card">
                   <span class="metric-label">Formulations</span>
                   <strong id="summaryFormulations">0</strong>
                 </div>
               </div>
-              <div class="col-6">
+              <div class="col-6 col-md-4 col-lg-6">
                 <div class="metric-card">
                   <span class="metric-label">Avg Sale</span>
                   <strong id="summarySalePrice">₹0.00</strong>
+                </div>
+              </div>
+              <div class="col-6 col-md-4 col-lg-6">
+                <div class="metric-card">
+                  <span class="metric-label">Avg Final Cost</span>
+                  <strong id="summaryFinalCost">₹0.00</strong>
+                </div>
+              </div>
+              <div class="col-6 col-md-4 col-lg-6">
+                <div class="metric-card">
+                  <span class="metric-label">Avg Profit</span>
+                  <strong id="summaryProfit">₹0.00</strong>
+                </div>
+              </div>
+              <div class="col-12 col-md-8 col-lg-12">
+                <div class="metric-card">
+                  <span class="metric-label">Lowest Margin</span>
+                  <strong id="summaryLowestMargin">-</strong>
+                  <small id="summaryLowestMarginValue" class="text-muted">0.00%</small>
                 </div>
               </div>
             </div>
@@ -62,8 +81,13 @@
               <div class="d-flex flex-wrap gap-3 align-items-end">
                 <div class="form-check form-switch mb-2">
                   <input class="form-check-input" type="checkbox" role="switch" id="dashboardWithoutFor" checked />
-                  <label class="form-check-label" for="dashboardWithoutFor">Without FOR</label>
+                  <label class="form-check-label" for="dashboardWithoutFor">FOR</label>
                 </div>
+                <div class="form-check form-switch mb-2">
+                  <input class="form-check-input" type="checkbox" role="switch" id="showArchivedFormulations" />
+                  <label class="form-check-label" for="showArchivedFormulations">Show Archived</label>
+                </div>
+                <input id="searchFormulations" class="form-control" placeholder="Search formulation name" />
                 <select id="filterType" class="form-select">
                   <option value="">All Types</option>
                   <option value="Garden">Garden</option>
@@ -147,7 +171,12 @@
                 <h2 class="h4 mb-1">Formulation Detail</h2>
                 <p class="text-muted mb-0">Selected formula, cost stack, and material composition.</p>
               </div>
-              <a id="detailEditLink" href="/add-formulation" class="btn btn-sm btn-outline-primary d-none">Edit</a>
+              <div class="d-flex gap-2">
+                <button id="detailDuplicateButton" type="button" class="btn btn-sm btn-outline-secondary d-none">Duplicate</button>
+                <button id="detailArchiveButton" type="button" class="btn btn-sm btn-outline-danger d-none">Archive</button>
+                <button id="detailRestoreButton" type="button" class="btn btn-sm btn-outline-success d-none">Restore</button>
+                <a id="detailEditLink" href="/add-formulation" class="btn btn-sm btn-outline-primary d-none">Edit</a>
+              </div>
             </div>
 
             <div id="detailEmpty" class="text-muted py-5 text-center">
@@ -251,7 +280,8 @@
       </section>
     </main>
 
+    <script src="/frontend/js/common.js"></script>
     <script src="/frontend/js/api.js"></script>
-    <script src="/frontend/js/main.js"></script>
+    <script src="/frontend/js/dashboard.js"></script>
   </body>
 </html>

@@ -114,12 +114,14 @@ body {
 }
 
 .sort-arrow {
-  color: var(--primary);
+  color: rgba(15, 76, 129, 0.45);
   font-size: 0.8rem;
   line-height: 1;
+  letter-spacing: -0.1em;
 }
 
 .sort-button.is-active .sort-arrow {
+  color: var(--primary);
   font-weight: 700;
 }
 
@@ -155,6 +157,20 @@ body {
 
 .table tbody tr[data-formulation-id].is-selected > *:not(:first-child):not(:last-child) {
   box-shadow: inset 0 1px 0 rgba(15, 76, 129, 0.12), inset 0 -1px 0 rgba(15, 76, 129, 0.12);
+}
+
+.table-row-summary {
+  max-height: 0;
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  transition: max-height 0.15s ease, margin-top 0.15s ease;
+}
+
+.table tbody tr[data-formulation-id]:hover .table-row-summary,
+.table tbody tr[data-formulation-id].is-selected .table-row-summary {
+  max-height: 1.25rem;
+  margin-top: 0.25rem;
 }
 
 .form-control,

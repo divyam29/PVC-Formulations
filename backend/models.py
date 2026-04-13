@@ -28,6 +28,9 @@ class MaterialRead(BaseModel):
     extra: float
     amount_per_kg: float
     created_at: datetime
+    updated_at: datetime
+    archived_at: Optional[datetime] = None
+    is_archived: bool = False
 
 
 class FormulationItemCreate(BaseModel):
@@ -66,6 +69,18 @@ class FormulationItemStored(BaseModel):
     quantity: float
 
 
+class FormulationVersionRead(BaseModel):
+    version: int
+    created_at: datetime
+    name: str
+    type: FormulationType
+    season: SeasonType
+    items: List[FormulationItemStored]
+    coating_percent: float = 0
+    coating_items: List[FormulationItemStored] = Field(default_factory=list)
+    fixed_profit: float
+
+
 class FormulationRead(BaseModel):
     id: str
     name: str
@@ -76,6 +91,10 @@ class FormulationRead(BaseModel):
     coating_items: List[FormulationItemStored] = Field(default_factory=list)
     fixed_profit: float
     created_at: datetime
+    updated_at: datetime
+    archived_at: Optional[datetime] = None
+    is_archived: bool = False
+    version_count: int = 1
     total_qty: float
     total_amount: float
     price_per_kg: float
@@ -85,6 +104,15 @@ class FormulationRead(BaseModel):
     profit: float
     profit_percent_cost: float
     profit_percent_sale: float
+
+
+class FormulationDuplicateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=160)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        return value.strip()
 
 
 class FormulationPreviewRequest(BaseModel):

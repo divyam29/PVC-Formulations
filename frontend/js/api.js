@@ -22,8 +22,11 @@ const api = {
     return response.json();
   },
 
-  getMaterials() {
-    return this.request("/materials");
+  getMaterials(filters = {}) {
+    const search = new URLSearchParams();
+    if (typeof filters.include_archived === "boolean") search.set("include_archived", String(filters.include_archived));
+    const query = search.toString();
+    return this.request(`/materials${query ? `?${query}` : ""}`);
   },
 
   createMaterial(payload) {
@@ -44,11 +47,25 @@ const api = {
     return this.request(`/materials/${id}`);
   },
 
+  archiveMaterial(id) {
+    return this.request(`/materials/${id}/archive`, {
+      method: "POST",
+    });
+  },
+
+  restoreMaterial(id) {
+    return this.request(`/materials/${id}/restore`, {
+      method: "POST",
+    });
+  },
+
   getFormulations(filters = {}) {
     const search = new URLSearchParams();
     if (filters.type) search.set("type", filters.type);
     if (filters.season) search.set("season", filters.season);
+    if (filters.name) search.set("name", filters.name);
     if (typeof filters.without_for === "boolean") search.set("without_for", String(filters.without_for));
+    if (typeof filters.include_archived === "boolean") search.set("include_archived", String(filters.include_archived));
     const query = search.toString();
     return this.request(`/formulations${query ? `?${query}` : ""}`);
   },
@@ -67,8 +84,30 @@ const api = {
     });
   },
 
-  getFormulation(id) {
-    return this.request(`/formulations/${id}`);
+  getFormulation(id, filters = {}) {
+    const search = new URLSearchParams();
+    if (typeof filters.without_for === "boolean") search.set("without_for", String(filters.without_for));
+    const query = search.toString();
+    return this.request(`/formulations/${id}${query ? `?${query}` : ""}`);
+  },
+
+  duplicateFormulation(id, payload) {
+    return this.request(`/formulations/${id}/duplicate`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  archiveFormulation(id) {
+    return this.request(`/formulations/${id}/archive`, {
+      method: "POST",
+    });
+  },
+
+  restoreFormulation(id) {
+    return this.request(`/formulations/${id}/restore`, {
+      method: "POST",
+    });
   },
 
   previewFormulation(payload) {

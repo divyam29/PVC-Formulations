@@ -1,4 +1,4 @@
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Optional
 
 
 TYPE_MISC_COST = {
@@ -16,15 +16,24 @@ def calculate_material_amount_per_kg(unit_price: float, gst: float, extra: float
     return round_money(unit_price * (1 + gst / 100) + extra)
 
 
-def calculate_component_totals(items: Iterable[dict], materials_by_id: Dict[str, dict]) -> tuple[float, float]:
+def resolve_material_amount_per_kg(item: dict, materials_by_id: Optional[Dict[str, dict]] = None) -> float:
+    if "amount_per_kg" in item:
+        return float(item["amount_per_kg"])
+
+    if not materials_by_id:
+        raise ValueError("Material pricing is missing for formulation item.")
+
+    return float(materials_by_id[item["material_id"]]["amount_per_kg"])
+
+
+def calculate_component_totals(items: Iterable[dict], materials_by_id: Optional[Dict[str, dict]] = None) -> tuple[float, float]:
     total_qty = 0.0
     total_amount = 0.0
 
     for item in items:
-        material = materials_by_id[item["material_id"]]
         qty = float(item["quantity"])
         total_qty += qty
-        total_amount += qty * float(material["amount_per_kg"])
+        total_amount += qty * resolve_material_amount_per_kg(item, materials_by_id)
 
     return total_qty, total_amount
 

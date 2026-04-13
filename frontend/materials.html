@@ -62,6 +62,10 @@
                 <h2 class="h4 mb-1">Materials List</h2>
                 <p class="text-muted mb-0">Material costs with auto-calculated amount per kg.</p>
               </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="showArchivedMaterials" />
+                <label class="form-check-label" for="showArchivedMaterials">Show Archived</label>
+              </div>
             </div>
 
             <div id="materialsLoader" class="text-center py-5 d-none">
@@ -93,7 +97,8 @@
       </div>
     </main>
 
+    <script src="/frontend/js/common.js"></script>
     <script src="/frontend/js/api.js"></script>
-    <script src="/frontend/js/main.js"></script>
+    <script src="/frontend/js/materials.js"></script>
   </body>
 </html>
