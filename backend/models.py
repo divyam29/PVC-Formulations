@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 FormulationType = Literal["Garden", "Braided", "Recycled"]
-SeasonType = Literal["Summer", "Winter"]
+SeasonType = Literal["Summer", "Winter", "All Weather"]
 
 
 class MaterialCreate(BaseModel):
@@ -40,13 +40,24 @@ class FormulationCreate(BaseModel):
     type: FormulationType
     season: SeasonType
     items: List[FormulationItemCreate] = Field(..., min_length=1)
+    coating_percent: float = Field(default=0, ge=0, le=100)
+    coating_items: List[FormulationItemCreate] = Field(default_factory=list)
     fixed_profit: float = Field(..., ge=0)
-    is_for: bool = True
 
     @field_validator("name")
     @classmethod
     def normalize_name(cls, value: str) -> str:
         return value.strip()
+
+    @model_validator(mode="after")
+    def validate_coating(self):
+        has_coating_items = bool(self.coating_items)
+        has_coating_percent = self.coating_percent > 0
+
+        if has_coating_items != has_coating_percent:
+            raise ValueError("Coating percent and coating materials must be provided together.")
+
+        return self
 
 
 class FormulationItemStored(BaseModel):
@@ -61,8 +72,9 @@ class FormulationRead(BaseModel):
     type: FormulationType
     season: SeasonType
     items: List[FormulationItemStored]
+    coating_percent: float = 0
+    coating_items: List[FormulationItemStored] = Field(default_factory=list)
     fixed_profit: float
-    is_for: bool
     created_at: datetime
     total_qty: float
     total_amount: float
@@ -77,9 +89,20 @@ class FormulationRead(BaseModel):
 
 class FormulationPreviewRequest(BaseModel):
     type: FormulationType
+    coating_percent: float = Field(default=0, ge=0, le=100)
+    coating_items: List[FormulationItemCreate] = Field(default_factory=list)
     fixed_profit: float = Field(..., ge=0)
-    is_for: bool = True
     items: List[FormulationItemCreate] = Field(..., min_length=1)
+
+    @model_validator(mode="after")
+    def validate_coating(self):
+        has_coating_items = bool(self.coating_items)
+        has_coating_percent = self.coating_percent > 0
+
+        if has_coating_items != has_coating_percent:
+            raise ValueError("Coating percent and coating materials must be provided together.")
+
+        return self
 
 
 class FormulationSummary(BaseModel):

@@ -54,17 +54,12 @@
                 <select id="formulationSeason" class="form-select" required>
                   <option value="Summer">Summer</option>
                   <option value="Winter">Winter</option>
+                  <option value="All Weather">All Weather</option>
                 </select>
               </div>
               <div class="col-md-6">
                 <label for="fixedProfit" class="form-label">Fixed Profit</label>
                 <input id="fixedProfit" type="number" step="0.01" min="0" class="form-control" value="0" required />
-              </div>
-              <div class="col-md-6 d-flex align-items-end">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" role="switch" id="isFor" checked />
-                  <label class="form-check-label" for="isFor">Without FOR</label>
-                </div>
               </div>
 
               <div class="col-12">
@@ -73,6 +68,29 @@
                   <button id="addItemRow" type="button" class="btn btn-outline-primary btn-sm">Add Row</button>
                 </div>
                 <div id="itemsContainer" class="d-grid gap-3"></div>
+              </div>
+
+              <div class="col-12">
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" role="switch" id="enableCoating" />
+                  <label class="form-check-label" for="enableCoating">Add Coating</label>
+                </div>
+              </div>
+
+              <div id="coatingSection" class="col-12 d-none">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label for="coatingPercent" class="form-label">Coating %</label>
+                    <input id="coatingPercent" type="number" step="0.01" min="0" max="100" class="form-control" value="0" />
+                  </div>
+                  <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                      <h2 class="h5 mb-0">Coating Materials</h2>
+                      <button id="addCoatingRow" type="button" class="btn btn-outline-primary btn-sm">Add Coating Row</button>
+                    </div>
+                    <div id="coatingItemsContainer" class="d-grid gap-3"></div>
+                  </div>
+                </div>
               </div>
 
               <div class="col-12 d-flex gap-2">

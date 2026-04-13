@@ -16,13 +16,7 @@ def calculate_material_amount_per_kg(unit_price: float, gst: float, extra: float
     return round_money(unit_price * (1 + gst / 100) + extra)
 
 
-def calculate_formulation_metrics(
-    formulation_type: str,
-    fixed_profit: float,
-    is_for: bool,
-    items: Iterable[dict],
-    materials_by_id: Dict[str, dict],
-) -> dict:
+def calculate_component_totals(items: Iterable[dict], materials_by_id: Dict[str, dict]) -> tuple[float, float]:
     total_qty = 0.0
     total_amount = 0.0
 
@@ -32,13 +26,39 @@ def calculate_formulation_metrics(
         total_qty += qty
         total_amount += qty * float(material["amount_per_kg"])
 
+    return total_qty, total_amount
+
+
+def calculate_formulation_metrics(
+    formulation_type: str,
+    fixed_profit: float,
+    without_for: bool,
+    items: Iterable[dict],
+    coating_percent: float,
+    coating_items: Iterable[dict],
+    materials_by_id: Dict[str, dict],
+) -> dict:
+    base_qty, base_amount = calculate_component_totals(items, materials_by_id)
+
+    total_qty = base_qty
+    total_amount = base_amount
+    price_per_kg = total_amount / total_qty
+
+    if coating_percent > 0:
+        coating_qty, coating_amount = calculate_component_totals(coating_items, materials_by_id)
+        base_share = (100 - coating_percent) / 100
+        coating_share = coating_percent / 100
+        base_price_per_kg = base_amount / base_qty
+        coating_price_per_kg = coating_amount / coating_qty
+        price_per_kg = (base_price_per_kg * base_share) + (coating_price_per_kg * coating_share)
+        total_qty = (base_qty * base_share) + (coating_qty * coating_share)
+        total_amount = price_per_kg * total_qty
+
     if total_qty <= 0:
         raise ValueError("Total quantity must be greater than zero.")
-
-    price_per_kg = total_amount / total_qty
     misc = TYPE_MISC_COST[formulation_type]
 
-    if not is_for:
+    if not without_for:
         misc -= 1.5
 
     final_cost = price_per_kg + misc

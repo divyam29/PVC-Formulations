@@ -57,8 +57,9 @@ def serialize_formulation(document: dict, metrics: dict) -> dict:
         "type": document["type"],
         "season": document["season"],
         "items": document["items"],
+        "coating_percent": document.get("coating_percent", 0),
+        "coating_items": document.get("coating_items", []),
         "fixed_profit": document["fixed_profit"],
-        "is_for": document["is_for"],
         "created_at": document["created_at"],
         **metrics,
     }
@@ -86,14 +87,17 @@ def get_material_map_from_ids(material_ids: list[str]) -> dict[str, dict]:
     return materials_by_id
 
 
-def build_formulation_response(document: dict) -> FormulationRead:
+def build_formulation_response(document: dict, without_for: bool = True) -> FormulationRead:
     material_ids = [item["material_id"] for item in document["items"]]
+    material_ids.extend(item["material_id"] for item in document.get("coating_items", []))
     materials_by_id = get_material_map_from_ids(material_ids)
     metrics = calculate_formulation_metrics(
         formulation_type=document["type"],
         fixed_profit=document["fixed_profit"],
-        is_for=document["is_for"],
+        without_for=without_for,
         items=document["items"],
+        coating_percent=document.get("coating_percent", 0),
+        coating_items=document.get("coating_items", []),
         materials_by_id=materials_by_id,
     )
     return FormulationRead.model_validate(serialize_formulation(document, metrics))
@@ -128,7 +132,7 @@ def create_material(payload: MaterialCreate):
 @app.get("/materials", response_model=list[MaterialRead])
 def list_materials():
     collection = get_materials_collection()
-    materials = collection.find().sort("created_at", -1)
+    materials = collection.find().sort("created_at", 1)
     return [MaterialRead.model_validate(serialize_material(material)) for material in materials]
 
 
@@ -181,12 +185,15 @@ def update_material(material_id: str, payload: MaterialCreate):
 @app.post("/formulations/preview", response_model=FormulationSummary)
 def preview_formulation(payload: FormulationPreviewRequest):
     material_ids = [item.material_id for item in payload.items]
+    material_ids.extend(item.material_id for item in payload.coating_items)
     materials_by_id = get_material_map_from_ids(material_ids)
     metrics = calculate_formulation_metrics(
         formulation_type=payload.type,
         fixed_profit=payload.fixed_profit,
-        is_for=payload.is_for,
+        without_for=True,
         items=[item.model_dump() for item in payload.items],
+        coating_percent=payload.coating_percent,
+        coating_items=[item.model_dump() for item in payload.coating_items],
         materials_by_id=materials_by_id,
     )
     return FormulationSummary.model_validate(
@@ -201,12 +208,24 @@ def preview_formulation(payload: FormulationPreviewRequest):
 def create_formulation(payload: FormulationCreate):
     collection = get_formulations_collection()
     material_ids = [item.material_id for item in payload.items]
+    material_ids.extend(item.material_id for item in payload.coating_items)
     materials_by_id = get_material_map_from_ids(material_ids)
     stored_items = []
+    stored_coating_items = []
 
     for item in payload.items:
         material = materials_by_id[item.material_id]
         stored_items.append(
+            {
+                "material_id": item.material_id,
+                "name": material["name"],
+                "quantity": item.quantity,
+            }
+        )
+
+    for item in payload.coating_items:
+        material = materials_by_id[item.material_id]
+        stored_coating_items.append(
             {
                 "material_id": item.material_id,
                 "name": material["name"],
@@ -219,8 +238,9 @@ def create_formulation(payload: FormulationCreate):
         "type": payload.type,
         "season": payload.season,
         "items": stored_items,
+        "coating_percent": payload.coating_percent,
+        "coating_items": stored_coating_items,
         "fixed_profit": payload.fixed_profit,
-        "is_for": payload.is_for,
         "created_at": datetime.now(timezone.utc),
     }
     result = collection.insert_one(document)
@@ -232,6 +252,7 @@ def create_formulation(payload: FormulationCreate):
 def list_formulations(
     type: Optional[str] = Query(default=None),
     season: Optional[str] = Query(default=None),
+    without_for: bool = Query(default=True),
 ):
     collection = get_formulations_collection()
     query = {}
@@ -242,16 +263,19 @@ def list_formulations(
         query["season"] = season
 
     formulations = collection.find(query).sort("created_at", -1)
-    return [build_formulation_response(formulation) for formulation in formulations]
+    return [build_formulation_response(formulation, without_for=without_for) for formulation in formulations]
 
 
 @app.get("/formulations/{formulation_id}", response_model=FormulationRead)
-def get_formulation(formulation_id: str):
+def get_formulation(
+    formulation_id: str,
+    without_for: bool = Query(default=True),
+):
     collection = get_formulations_collection()
     formulation = collection.find_one({"_id": parse_object_id(formulation_id, "formulation_id")})
     if not formulation:
         raise HTTPException(status_code=404, detail="Formulation not found.")
-    return build_formulation_response(formulation)
+    return build_formulation_response(formulation, without_for=without_for)
 
 
 @app.put("/formulations/{formulation_id}", response_model=FormulationRead)
@@ -263,12 +287,24 @@ def update_formulation(formulation_id: str, payload: FormulationCreate):
         raise HTTPException(status_code=404, detail="Formulation not found.")
 
     material_ids = [item.material_id for item in payload.items]
+    material_ids.extend(item.material_id for item in payload.coating_items)
     materials_by_id = get_material_map_from_ids(material_ids)
     stored_items = []
+    stored_coating_items = []
 
     for item in payload.items:
         material = materials_by_id[item.material_id]
         stored_items.append(
+            {
+                "material_id": item.material_id,
+                "name": material["name"],
+                "quantity": item.quantity,
+            }
+        )
+
+    for item in payload.coating_items:
+        material = materials_by_id[item.material_id]
+        stored_coating_items.append(
             {
                 "material_id": item.material_id,
                 "name": material["name"],
@@ -284,9 +320,11 @@ def update_formulation(formulation_id: str, payload: FormulationCreate):
                 "type": payload.type,
                 "season": payload.season,
                 "items": stored_items,
+                "coating_percent": payload.coating_percent,
+                "coating_items": stored_coating_items,
                 "fixed_profit": payload.fixed_profit,
-                "is_for": payload.is_for,
-            }
+            },
+            "$unset": {"is_for": ""},
         },
     )
 

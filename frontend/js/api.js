@@ -48,6 +48,7 @@ const api = {
     const search = new URLSearchParams();
     if (filters.type) search.set("type", filters.type);
     if (filters.season) search.set("season", filters.season);
+    if (typeof filters.without_for === "boolean") search.set("without_for", String(filters.without_for));
     const query = search.toString();
     return this.request(`/formulations${query ? `?${query}` : ""}`);
   },

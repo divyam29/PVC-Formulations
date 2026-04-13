@@ -30,6 +30,7 @@ async function initDashboard() {
   const tableBody = document.getElementById("formulationsTableBody");
   const typeFilter = document.getElementById("filterType");
   const seasonFilter = document.getElementById("filterSeason");
+  const withoutForToggle = document.getElementById("dashboardWithoutFor");
   const formulationsCount = document.getElementById("summaryFormulations");
   const avgSalePrice = document.getElementById("summarySalePrice");
   const detailPanel = document.getElementById("detailPanel");
@@ -66,8 +67,6 @@ async function initDashboard() {
     document.getElementById("detailName").textContent = item.name;
     document.getElementById("detailType").textContent = item.type;
     document.getElementById("detailSeason").textContent = item.season;
-    document.getElementById("detailWithoutFor").textContent = item.is_for ? "Without FOR" : "With FOR";
-    document.getElementById("detailWithoutFor").className = `badge ${item.is_for ? "text-bg-success" : "text-bg-secondary"}`;
     document.getElementById("detailTotalQty").textContent = decimal(item.total_qty);
     document.getElementById("detailTotalAmount").textContent = currency(item.total_amount);
     document.getElementById("detailPricePerKg").textContent = currency(item.price_per_kg);
@@ -76,29 +75,46 @@ async function initDashboard() {
     document.getElementById("detailSalePrice").textContent = currency(item.sale_price);
     document.getElementById("detailFixedProfit").textContent = currency(item.fixed_profit);
     document.getElementById("detailProfitPercent").textContent = `${decimal(item.profit_percent_sale)}%`;
-    document.getElementById("detailMaterialCount").textContent = `${item.items.length} material entries`;
-    document.getElementById("detailItems").innerHTML = item.items
-      .map(
-        (material) => `
-          <div class="detail-item">
-            <div>
-              <div class="fw-semibold">${material.name}</div>
-              <div class="text-muted small">Material ID: ${material.material_id}</div>
-            </div>
-            <div class="text-end">
-              <div class="fw-semibold">${decimal(material.quantity)} kg</div>
-            </div>
-          </div>
-        `
-      )
-      .join("");
+    const coatingItems = item.coating_items || [];
+    document.getElementById("detailMaterialCount").textContent = coatingItems.length
+      ? `${item.items.length + coatingItems.length} material entries`
+      : `${item.items.length} material entries`;
+
+    const renderMaterialGroup = (title, materials) => `
+      <div>
+        <div class="fw-semibold mb-2">${title}</div>
+        <div class="detail-items">
+          ${materials
+            .map(
+              (material) => `
+                <div class="detail-item">
+                  <div>
+                    <div class="fw-semibold">${material.name}</div>
+                  </div>
+                  <div class="text-end">
+                    <div class="fw-semibold">${decimal(material.quantity)} kg</div>
+                  </div>
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      </div>
+    `;
+
+    document.getElementById("detailItems").innerHTML = [
+      renderMaterialGroup("Base Materials", item.items),
+      coatingItems.length
+        ? renderMaterialGroup(`Coating Materials (${decimal(item.coating_percent)}%)`, coatingItems)
+        : "",
+    ].join("");
     syncSelectedRow();
   };
 
   const renderRows = (items) => {
     if (!items.length) {
       tableBody.innerHTML =
-        '<tr><td colspan="8" class="text-center text-muted py-5">No formulations found.</td></tr>';
+        '<tr><td colspan="7" class="text-center text-muted py-5">No formulations found.</td></tr>';
       formulationsCount.textContent = "0";
       avgSalePrice.textContent = currency(0);
       renderDetail(null);
@@ -118,7 +134,6 @@ async function initDashboard() {
             </td>
             <td>${item.type}</td>
             <td>${item.season}</td>
-            <td><span class="badge ${item.is_for ? "text-bg-success" : "text-bg-secondary"}">${item.is_for ? "Yes" : "No"}</span></td>
             <td>${currency(item.final_cost)}</td>
             <td>${currency(item.sale_price)}</td>
             <td>${decimal(item.profit_percent_sale)}%</td>
@@ -154,8 +169,7 @@ async function initDashboard() {
             <td>${decimal(item.gst)}%</td>
             <td>${currency(item.extra)}</td>
             <td class="fw-semibold">${currency(item.amount_per_kg)}</td>
-            <td class="text-end d-flex justify-content-end gap-2">
-              <a class="btn btn-sm btn-outline-primary" href="/materials-page">Edit GST / Extra</a>
+            <td class="text-end">
               <button type="button" class="btn btn-sm btn-primary save-dashboard-material">Save Cost</button>
             </td>
           </tr>
@@ -201,6 +215,7 @@ async function initDashboard() {
       const data = await api.getFormulations({
         type: typeFilter.value,
         season: seasonFilter.value,
+        without_for: withoutForToggle.checked,
       });
       renderRows(data);
     } catch (error) {
@@ -224,6 +239,7 @@ async function initDashboard() {
   };
 
   document.getElementById("applyFilters").addEventListener("click", loadFormulations);
+  withoutForToggle.addEventListener("change", loadFormulations);
   await Promise.all([loadFormulations(), loadMaterials()]);
 }
 
@@ -336,7 +352,9 @@ async function initMaterialsPage() {
 
 async function initAddFormulationPage() {
   const itemsContainer = document.getElementById("itemsContainer");
+  const coatingItemsContainer = document.getElementById("coatingItemsContainer");
   const addRowButton = document.getElementById("addItemRow");
+  const addCoatingRowButton = document.getElementById("addCoatingRow");
   const previewButton = document.getElementById("previewButton");
   const form = document.getElementById("formulationForm");
   const alert = document.getElementById("formulationAlert");
@@ -346,6 +364,9 @@ async function initAddFormulationPage() {
   const pageSubtitle = document.getElementById("formulationPageSubtitle");
   const submitButton = document.getElementById("formulationSubmitButton");
   const backToDashboard = document.getElementById("backToDashboard");
+  const enableCoating = document.getElementById("enableCoating");
+  const coatingSection = document.getElementById("coatingSection");
+  const coatingPercentInput = document.getElementById("coatingPercent");
   const formulationId = new URLSearchParams(window.location.search).get("id");
 
   let materials = [];
@@ -353,7 +374,7 @@ async function initAddFormulationPage() {
   const getMaterialOptions = () =>
     materials.map((material) => `<option value="${material.id}">${material.name}</option>`).join("");
 
-  const addItemRow = (item = {}) => {
+  const addMaterialRow = (container, item = {}) => {
     const row = document.createElement("div");
     row.className = "item-row border rounded-4 p-3 bg-light-subtle";
     row.innerHTML = `
@@ -380,24 +401,42 @@ async function initAddFormulationPage() {
 
     row.querySelector(".remove-item").addEventListener("click", () => {
       row.remove();
-      if (!itemsContainer.children.length) {
-        addItemRow();
+      if (!container.children.length) {
+        addMaterialRow(container);
       }
       updatePreview();
     });
 
     row.querySelector(".material-select").addEventListener("change", updatePreview);
     row.querySelector(".quantity-input").addEventListener("input", updatePreview);
-    itemsContainer.appendChild(row);
+    container.appendChild(row);
   };
 
-  const collectItems = () =>
-    Array.from(itemsContainer.querySelectorAll(".item-row"))
+  const addItemRow = (item = {}) => addMaterialRow(itemsContainer, item);
+  const addCoatingRow = (item = {}) => addMaterialRow(coatingItemsContainer, item);
+
+  const collectItemsFromContainer = (container) =>
+    Array.from(container.querySelectorAll(".item-row"))
       .map((row) => ({
         material_id: row.querySelector(".material-select").value,
         quantity: Number(row.querySelector(".quantity-input").value),
       }))
       .filter((item) => item.material_id && item.quantity > 0);
+
+  const collectItems = () => collectItemsFromContainer(itemsContainer);
+  const collectCoatingItems = () => collectItemsFromContainer(coatingItemsContainer);
+
+  const syncCoatingState = () => {
+    const enabled = enableCoating.checked;
+    setVisible(coatingSection, enabled);
+    if (enabled && !coatingItemsContainer.children.length) {
+      addCoatingRow();
+    }
+    if (!enabled) {
+      coatingPercentInput.value = "0";
+      coatingItemsContainer.innerHTML = "";
+    }
+  };
 
   const updatePreviewFields = (data) => {
     document.getElementById("previewTotalQty").textContent = decimal(data.total_qty);
@@ -425,6 +464,8 @@ async function initAddFormulationPage() {
   const updatePreview = async () => {
     hideAlert(previewError);
     const items = collectItems();
+    const coating_items = collectCoatingItems();
+    const coating_percent = enableCoating.checked ? Number(coatingPercentInput.value || 0) : 0;
     if (!items.length) {
       resetPreview();
       return;
@@ -435,7 +476,8 @@ async function initAddFormulationPage() {
       const preview = await api.previewFormulation({
         type: document.getElementById("formulationType").value,
         fixed_profit: Number(document.getElementById("fixedProfit").value || 0),
-        is_for: document.getElementById("isFor").checked,
+        coating_percent,
+        coating_items,
         items,
       });
       updatePreviewFields(preview);
@@ -466,7 +508,6 @@ async function initAddFormulationPage() {
     document.getElementById("formulationType").value = formulation.type;
     document.getElementById("formulationSeason").value = formulation.season;
     document.getElementById("fixedProfit").value = formulation.fixed_profit;
-    document.getElementById("isFor").checked = formulation.is_for;
     itemsContainer.innerHTML = "";
     formulation.items.forEach((item) => {
       addItemRow({
@@ -474,22 +515,44 @@ async function initAddFormulationPage() {
         quantity: item.quantity,
       });
     });
+    enableCoating.checked = Boolean(formulation.coating_items && formulation.coating_items.length);
+    syncCoatingState();
+    coatingItemsContainer.innerHTML = "";
+    coatingPercentInput.value = formulation.coating_percent || 0;
+    (formulation.coating_items || []).forEach((item) => {
+      addCoatingRow({
+        material_id: item.material_id,
+        quantity: item.quantity,
+      });
+    });
   };
 
   addRowButton.addEventListener("click", () => addItemRow());
+  addCoatingRowButton.addEventListener("click", () => addCoatingRow());
   previewButton.addEventListener("click", updatePreview);
-
-  ["formulationType", "fixedProfit", "isFor"].forEach((id) => {
-    document.getElementById(id).addEventListener(id === "isFor" ? "change" : "input", updatePreview);
+  enableCoating.addEventListener("change", () => {
+    syncCoatingState();
+    updatePreview();
   });
+  coatingPercentInput.addEventListener("input", updatePreview);
+
+  document.getElementById("formulationType").addEventListener("change", updatePreview);
+  document.getElementById("fixedProfit").addEventListener("input", updatePreview);
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     hideAlert(alert);
     const items = collectItems();
+    const coating_items = enableCoating.checked ? collectCoatingItems() : [];
+    const coating_percent = enableCoating.checked ? Number(coatingPercentInput.value || 0) : 0;
 
     if (!items.length) {
       showAlert(alert, "Add at least one valid material row.", "warning");
+      return;
+    }
+
+    if (enableCoating.checked && (!coating_items.length || coating_percent <= 0 || coating_percent > 100)) {
+      showAlert(alert, "Provide coating materials and a coating percentage greater than 0 and at most 100.", "warning");
       return;
     }
 
@@ -498,7 +561,8 @@ async function initAddFormulationPage() {
       type: document.getElementById("formulationType").value,
       season: document.getElementById("formulationSeason").value,
       fixed_profit: Number(document.getElementById("fixedProfit").value || 0),
-      is_for: document.getElementById("isFor").checked,
+      coating_percent,
+      coating_items,
       items,
     };
 
@@ -509,8 +573,10 @@ async function initAddFormulationPage() {
       } else {
         await api.createFormulation(payload);
         form.reset();
-        document.getElementById("isFor").checked = true;
         itemsContainer.innerHTML = "";
+        coatingItemsContainer.innerHTML = "";
+        enableCoating.checked = false;
+        syncCoatingState();
         addItemRow();
         resetPreview();
         showAlert(alert, "Formulation saved successfully.", "success");
@@ -522,6 +588,7 @@ async function initAddFormulationPage() {
 
   try {
     await loadMaterials();
+    syncCoatingState();
     await populateFormulation();
     await updatePreview();
   } catch (error) {

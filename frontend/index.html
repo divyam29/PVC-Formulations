@@ -57,9 +57,13 @@
             <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
               <div>
                 <h2 class="h4 mb-1">Formulations</h2>
-                <p class="text-muted mb-0">Click any row to preview the full formulation breakdown.</p>
+                <p class="text-muted mb-0">Hover to highlight and click to lock the formulation breakdown.</p>
               </div>
-              <div class="d-flex flex-wrap gap-2">
+              <div class="d-flex flex-wrap gap-3 align-items-end">
+                <div class="form-check form-switch mb-2">
+                  <input class="form-check-input" type="checkbox" role="switch" id="dashboardWithoutFor" checked />
+                  <label class="form-check-label" for="dashboardWithoutFor">Without FOR</label>
+                </div>
                 <select id="filterType" class="form-select">
                   <option value="">All Types</option>
                   <option value="Garden">Garden</option>
@@ -70,6 +74,7 @@
                   <option value="">All Seasons</option>
                   <option value="Summer">Summer</option>
                   <option value="Winter">Winter</option>
+                  <option value="All Weather">All Weather</option>
                 </select>
                 <button id="applyFilters" class="btn btn-primary">Apply</button>
               </div>
@@ -89,7 +94,6 @@
                     <th>Name</th>
                     <th>Type</th>
                     <th>Season</th>
-                    <th>Without FOR</th>
                     <th>Final Cost</th>
                     <th>Sale Price</th>
                     <th>Profit %</th>
@@ -98,7 +102,7 @@
                 </thead>
                 <tbody id="formulationsTableBody">
                   <tr>
-                    <td colspan="8" class="text-center text-muted py-5">No formulations found.</td>
+                    <td colspan="7" class="text-center text-muted py-5">No formulations found.</td>
                   </tr>
                 </tbody>
               </table>
@@ -126,11 +130,18 @@
                 <div class="d-flex flex-wrap gap-2">
                   <span id="detailType" class="badge text-bg-primary"></span>
                   <span id="detailSeason" class="badge text-bg-light"></span>
-                  <span id="detailWithoutFor" class="badge"></span>
                 </div>
               </div>
 
-              <div class="preview-grid mb-4">
+              <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h3 class="h6 mb-0">Materials Used</h3>
+                  <span id="detailMaterialCount" class="text-muted small"></span>
+                </div>
+                <div id="detailItems" class="detail-items"></div>
+              </div>
+
+              <div class="preview-grid">
                 <div class="preview-item">
                   <span>Total Qty</span>
                   <strong id="detailTotalQty">0.00</strong>
@@ -163,14 +174,6 @@
                   <span>Profit % Sale</span>
                   <strong id="detailProfitPercent">0.00%</strong>
                 </div>
-              </div>
-
-              <div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <h3 class="h6 mb-0">Materials Used</h3>
-                  <span id="detailMaterialCount" class="text-muted small"></span>
-                </div>
-                <div id="detailItems" class="detail-items"></div>
               </div>
             </div>
           </section>
