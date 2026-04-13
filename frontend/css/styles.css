@@ -100,6 +100,29 @@ body {
   letter-spacing: 0.06em;
 }
 
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+
+.sort-arrow {
+  color: var(--primary);
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.sort-button.is-active .sort-arrow {
+  font-weight: 700;
+}
+
 .table tbody tr {
   background: rgba(255, 255, 255, 0.72);
 }

@@ -91,12 +91,42 @@
               <table class="table align-middle">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Season</th>
-                    <th>Final Cost</th>
-                    <th>Sale Price</th>
-                    <th>Profit %</th>
+                    <th>
+                      <button type="button" class="sort-button" data-sort-key="name">
+                        <span>Name</span>
+                        <span class="sort-arrow">↕</span>
+                      </button>
+                    </th>
+                    <th>
+                      <button type="button" class="sort-button" data-sort-key="season">
+                        <span>Season</span>
+                        <span class="sort-arrow">↕</span>
+                      </button>
+                    </th>
+                    <th>
+                      <button type="button" class="sort-button" data-sort-key="final_cost">
+                        <span>Final Cost</span>
+                        <span class="sort-arrow">↕</span>
+                      </button>
+                    </th>
+                    <th>
+                      <button type="button" class="sort-button" data-sort-key="sale_price">
+                        <span>Sale Price</span>
+                        <span class="sort-arrow">↕</span>
+                      </button>
+                    </th>
+                    <th>
+                      <button type="button" class="sort-button" data-sort-key="profit">
+                        <span>Profit ₹</span>
+                        <span class="sort-arrow">↕</span>
+                      </button>
+                    </th>
+                    <th>
+                      <button type="button" class="sort-button" data-sort-key="profit_percent_cost">
+                        <span>Profit % Cost</span>
+                        <span class="sort-arrow">↕</span>
+                      </button>
+                    </th>
                     <th></th>
                   </tr>
                 </thead>
@@ -171,8 +201,12 @@
                   <strong id="detailFixedProfit">₹0.00</strong>
                 </div>
                 <div class="preview-item">
+                  <span>Profit % Cost</span>
+                  <strong id="detailProfitPercentCost">0.00%</strong>
+                </div>
+                <div class="preview-item">
                   <span>Profit % Sale</span>
-                  <strong id="detailProfitPercent">0.00%</strong>
+                  <strong id="detailProfitPercentSale">0.00%</strong>
                 </div>
               </div>
             </div>

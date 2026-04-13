@@ -24,6 +24,13 @@ const hideAlert = (element) => {
   element.textContent = "";
 };
 
+const setText = (id, value) => {
+  const element = document.getElementById(id);
+  if (element) {
+    element.textContent = value;
+  }
+};
+
 async function initDashboard() {
   const loader = document.getElementById("dashboardLoader");
   const alert = document.getElementById("dashboardAlert");
@@ -39,8 +46,42 @@ async function initDashboard() {
   const materialsAlert = document.getElementById("dashboardMaterialsAlert");
   const materialsLoader = document.getElementById("dashboardMaterialsLoader");
   const materialsTableBody = document.getElementById("dashboardMaterialsTableBody");
+  const sortButtons = document.querySelectorAll(".sort-button");
 
   let selectedFormulationId = null;
+  let sortState = { key: "name", direction: "asc" };
+
+  const sortValue = (item, key) => {
+    if (key === "name" || key === "season") {
+      return String(item[key] || "").toLowerCase();
+    }
+    return Number(item[key] || 0);
+  };
+
+  const sortItems = (items) =>
+    [...items].sort((left, right) => {
+      const leftValue = sortValue(left, sortState.key);
+      const rightValue = sortValue(right, sortState.key);
+
+      if (leftValue < rightValue) {
+        return sortState.direction === "asc" ? -1 : 1;
+      }
+      if (leftValue > rightValue) {
+        return sortState.direction === "asc" ? 1 : -1;
+      }
+      return String(left.name).localeCompare(String(right.name));
+    });
+
+  const syncSortIndicators = () => {
+    sortButtons.forEach((button) => {
+      const isActive = button.dataset.sortKey === sortState.key;
+      button.classList.toggle("is-active", isActive);
+      const arrow = button.querySelector(".sort-arrow");
+      if (arrow) {
+        arrow.textContent = isActive ? (sortState.direction === "asc" ? "↑" : "↓") : "↕";
+      }
+    });
+  };
 
   const syncSelectedRow = () => {
     tableBody.querySelectorAll("tr[data-formulation-id]").forEach((row) => {
@@ -64,21 +105,26 @@ async function initDashboard() {
     setVisible(detailEditLink, true);
     detailEditLink.href = `/add-formulation?id=${item.id}`;
 
-    document.getElementById("detailName").textContent = item.name;
-    document.getElementById("detailType").textContent = item.type;
-    document.getElementById("detailSeason").textContent = item.season;
-    document.getElementById("detailTotalQty").textContent = decimal(item.total_qty);
-    document.getElementById("detailTotalAmount").textContent = currency(item.total_amount);
-    document.getElementById("detailPricePerKg").textContent = currency(item.price_per_kg);
-    document.getElementById("detailMisc").textContent = currency(item.misc);
-    document.getElementById("detailFinalCost").textContent = currency(item.final_cost);
-    document.getElementById("detailSalePrice").textContent = currency(item.sale_price);
-    document.getElementById("detailFixedProfit").textContent = currency(item.fixed_profit);
-    document.getElementById("detailProfitPercent").textContent = `${decimal(item.profit_percent_sale)}%`;
+    setText("detailName", item.name);
+    setText("detailType", item.type);
+    setText("detailSeason", item.season);
+    setText("detailTotalQty", decimal(item.total_qty));
+    setText("detailTotalAmount", currency(item.total_amount));
+    setText("detailPricePerKg", currency(item.price_per_kg));
+    setText("detailMisc", currency(item.misc));
+    setText("detailFinalCost", currency(item.final_cost));
+    setText("detailSalePrice", currency(item.sale_price));
+    setText("detailFixedProfit", currency(item.fixed_profit));
+    setText("detailProfitPercentCost", `${decimal(item.profit_percent_cost)}%`);
+    setText("detailProfitPercentSale", `${decimal(item.profit_percent_sale)}%`);
+    setText("detailProfitPercent", `${decimal(item.profit_percent_sale)}%`);
     const coatingItems = item.coating_items || [];
-    document.getElementById("detailMaterialCount").textContent = coatingItems.length
+    setText(
+      "detailMaterialCount",
+      coatingItems.length
       ? `${item.items.length + coatingItems.length} material entries`
-      : `${item.items.length} material entries`;
+      : `${item.items.length} material entries`
+    );
 
     const renderMaterialGroup = (title, materials) => `
       <div>
@@ -125,18 +171,20 @@ async function initDashboard() {
     formulationsCount.textContent = String(items.length);
     avgSalePrice.textContent = currency(avgSale);
 
-    tableBody.innerHTML = items
+    const sortedItems = sortItems(items);
+
+    tableBody.innerHTML = sortedItems
       .map(
         (item) => `
           <tr data-formulation-id="${item.id}">
             <td>
               <div class="fw-semibold">${item.name}</div>
             </td>
-            <td>${item.type}</td>
             <td>${item.season}</td>
             <td>${currency(item.final_cost)}</td>
             <td>${currency(item.sale_price)}</td>
-            <td>${decimal(item.profit_percent_sale)}%</td>
+            <td>${currency(item.profit)}</td>
+            <td>${decimal(item.profit_percent_cost)}%</td>
             <td class="text-end">
               <a class="btn btn-sm btn-outline-primary" href="/add-formulation?id=${item.id}">Edit</a>
             </td>
@@ -146,11 +194,12 @@ async function initDashboard() {
       .join("");
 
     tableBody.querySelectorAll("tr[data-formulation-id]").forEach((row) => {
-      const formulation = items.find((entry) => entry.id === row.dataset.formulationId);
+      const formulation = sortedItems.find((entry) => entry.id === row.dataset.formulationId);
       row.addEventListener("click", () => renderDetail(formulation));
     });
 
-    renderDetail(items.find((item) => item.id === selectedFormulationId) || items[0]);
+    renderDetail(sortedItems.find((item) => item.id === selectedFormulationId) || sortedItems[0]);
+    syncSortIndicators();
   };
 
   const renderMaterials = (items) => {
@@ -240,6 +289,17 @@ async function initDashboard() {
 
   document.getElementById("applyFilters").addEventListener("click", loadFormulations);
   withoutForToggle.addEventListener("change", loadFormulations);
+  sortButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.sortKey;
+      sortState =
+        sortState.key === key
+          ? { key, direction: sortState.direction === "asc" ? "desc" : "asc" }
+          : { key, direction: "asc" };
+      loadFormulations();
+    });
+  });
+  syncSortIndicators();
   await Promise.all([loadFormulations(), loadMaterials()]);
 }
 
