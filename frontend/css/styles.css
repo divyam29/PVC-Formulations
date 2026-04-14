@@ -20,7 +20,8 @@ body {
 }
 
 .container {
-  width: min(100% - 1.5rem, 1180px);
+  width: min(96vw, 1560px) !important;
+  max-width: none !important;
 }
 
 .app-navbar {
@@ -207,6 +208,33 @@ body {
   border-radius: 16px;
 }
 
+.version-card summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.version-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.version-summary::after {
+  content: "Expand +";
+  margin-left: auto;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.version-card[open] .version-summary::after {
+  content: "Collapse -";
+}
+
+.version-card:not([open]) {
+  background: linear-gradient(180deg, #fbfdff, #f4f8fc);
+}
+
 .dashboard-filters > *,
 .dashboard-toolbar > *,
 .section-header-wrap > * {
@@ -249,7 +277,8 @@ body {
   }
 
   .container {
-    width: min(100% - 1rem, 1180px);
+    width: min(100vw - 1rem, 1180px) !important;
+    max-width: none !important;
   }
 
   .app-nav-links {
@@ -344,6 +373,13 @@ body {
   .preview-panel {
     position: static !important;
     top: auto !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  .container {
+    width: min(98vw, 1700px) !important;
+    max-width: none !important;
   }
 }
 

@@ -168,8 +168,8 @@ async function initAddFormulationPage() {
     versionHistoryList.innerHTML = orderedVersions
       .map(
         (version) => `
-          <div class="border rounded-4 p-3 bg-light-subtle">
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+          <details class="border rounded-4 p-3 bg-light-subtle version-card">
+            <summary class="d-flex flex-wrap justify-content-between align-items-start gap-3 version-summary">
               <div>
                 <div class="fw-semibold">Version ${version.version}</div>
                 <div class="text-muted small">${versionDate(version.created_at)}</div>
@@ -178,14 +178,16 @@ async function initAddFormulationPage() {
                 <div>${version.type} | ${version.season}</div>
                 <div>Fixed Profit: ${currency(version.fixed_profit)}</div>
               </div>
+            </summary>
+            <div class="pt-3">
+              ${renderVersionItems("Base Materials", version.items)}
+              ${
+                version.coating_items && version.coating_items.length
+                  ? renderVersionItems(`Coating Materials (${decimal(version.coating_percent)}%)`, version.coating_items)
+                  : ""
+              }
             </div>
-            ${renderVersionItems("Base Materials", version.items)}
-            ${
-              version.coating_items && version.coating_items.length
-                ? renderVersionItems(`Coating Materials (${decimal(version.coating_percent)}%)`, version.coating_items)
-                : ""
-            }
-          </div>
+          </details>
         `
       )
       .join("");
