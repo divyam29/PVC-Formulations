@@ -14,7 +14,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark app-navbar shadow-sm">
       <div class="container">
         <a class="navbar-brand fw-semibold" href="/">PVC Formulation ERP</a>
-        <div class="navbar-nav ms-auto gap-2">
+        <div class="navbar-nav app-nav-links ms-auto gap-2">
           <a class="nav-link active" href="/">Dashboard</a>
           <a class="nav-link" href="/add-formulation">Add Formulation</a>
           <a class="nav-link" href="/materials-page">Materials</a>
@@ -73,12 +73,12 @@
       <div class="row g-4">
         <div class="col-xl-8">
           <section class="panel-card p-4 h-100">
-            <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
+            <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4 dashboard-toolbar">
               <div>
                 <h2 class="h4 mb-1">Formulations</h2>
                 <p class="text-muted mb-0">Hover to highlight and click to lock the formulation breakdown.</p>
               </div>
-              <div class="d-flex flex-wrap gap-3 align-items-end">
+              <div class="d-flex flex-wrap gap-3 align-items-end dashboard-filters">
                 <div class="form-check form-switch mb-2">
                   <input class="form-check-input" type="checkbox" role="switch" id="dashboardWithoutFor" checked />
                   <label class="form-check-label" for="dashboardWithoutFor">FOR</label>
@@ -171,7 +171,7 @@
                 <h2 class="h4 mb-1">Formulation Detail</h2>
                 <p class="text-muted mb-0">Selected formula, cost stack, and material composition.</p>
               </div>
-              <div class="d-flex gap-2">
+              <div class="d-flex gap-2 detail-actions">
                 <button id="detailDuplicateButton" type="button" class="btn btn-sm btn-outline-secondary d-none">Duplicate</button>
                 <button id="detailArchiveButton" type="button" class="btn btn-sm btn-outline-danger d-none">Archive</button>
                 <button id="detailRestoreButton" type="button" class="btn btn-sm btn-outline-success d-none">Restore</button>
