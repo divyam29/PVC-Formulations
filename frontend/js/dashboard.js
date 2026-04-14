@@ -7,12 +7,6 @@ async function initDashboard() {
   const searchInput = document.getElementById("searchFormulations");
   const withoutForToggle = document.getElementById("dashboardWithoutFor");
   const showArchivedToggle = document.getElementById("showArchivedFormulations");
-  const formulationsCount = document.getElementById("summaryFormulations");
-  const avgSalePrice = document.getElementById("summarySalePrice");
-  const avgFinalCost = document.getElementById("summaryFinalCost");
-  const avgProfit = document.getElementById("summaryProfit");
-  const lowestMargin = document.getElementById("summaryLowestMargin");
-  const lowestMarginValue = document.getElementById("summaryLowestMarginValue");
   const detailPanel = document.getElementById("detailPanel");
   const detailEmpty = document.getElementById("detailEmpty");
   const detailEditLink = document.getElementById("detailEditLink");
@@ -129,27 +123,8 @@ async function initDashboard() {
     syncSelectedRow();
   };
 
-  const renderKpis = (items) => {
-    formulationsCount.textContent = String(items.length);
-    if (!items.length) {
-      avgSalePrice.textContent = currency(0);
-      avgFinalCost.textContent = currency(0);
-      avgProfit.textContent = currency(0);
-      lowestMargin.textContent = "-";
-      lowestMarginValue.textContent = "0.00%";
-      return;
-    }
-    avgSalePrice.textContent = currency(items.reduce((sum, item) => sum + item.sale_price, 0) / items.length);
-    avgFinalCost.textContent = currency(items.reduce((sum, item) => sum + item.final_cost, 0) / items.length);
-    avgProfit.textContent = currency(items.reduce((sum, item) => sum + item.profit, 0) / items.length);
-    const lowest = [...items].sort((a, b) => a.profit_percent_cost - b.profit_percent_cost)[0];
-    lowestMargin.textContent = lowest.name;
-    lowestMarginValue.textContent = `${decimal(lowest.profit_percent_cost)}%`;
-  };
-
   const renderRows = (items) => {
     lastLoadedItems = items;
-    renderKpis(items);
 
     if (!items.length) {
       tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-5">No formulations found.</td></tr>';
