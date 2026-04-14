@@ -95,6 +95,7 @@ class FormulationRead(BaseModel):
     archived_at: Optional[datetime] = None
     is_archived: bool = False
     version_count: int = 1
+    versions: List[FormulationVersionRead] = Field(default_factory=list)
     total_qty: float
     total_amount: float
     price_per_kg: float

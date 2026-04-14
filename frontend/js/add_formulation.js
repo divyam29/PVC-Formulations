@@ -12,6 +12,8 @@ async function initAddFormulationPage() {
   const pageSubtitle = document.getElementById("formulationPageSubtitle");
   const submitButton = document.getElementById("formulationSubmitButton");
   const backToDashboard = document.getElementById("backToDashboard");
+  const versionHistorySection = document.getElementById("versionHistorySection");
+  const versionHistoryList = document.getElementById("versionHistoryList");
   const enableCoating = document.getElementById("enableCoating");
   const coatingSection = document.getElementById("coatingSection");
   const coatingPercentInput = document.getElementById("coatingPercent");
@@ -125,6 +127,70 @@ async function initAddFormulationPage() {
     }
   };
 
+  const versionDate = (value) =>
+    new Intl.DateTimeFormat("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(value));
+
+  const renderVersionItems = (title, items) => `
+    <div class="mt-3">
+      <div class="fw-semibold mb-2">${title}</div>
+      <div class="d-grid gap-2">
+        ${items
+          .map(
+            (item) => `
+              <div class="detail-item">
+                <div>
+                  <div class="fw-semibold">${item.name}</div>
+                  <div class="text-muted small">${currency(item.amount_per_kg || 0)} / kg</div>
+                </div>
+                <div class="text-end">
+                  <div class="fw-semibold">${decimal(item.quantity)} kg</div>
+                </div>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+
+  const renderVersions = (formulation) => {
+    const versions = formulation.versions || [];
+    setVisible(versionHistorySection, versions.length > 0);
+    if (!versions.length) {
+      versionHistoryList.innerHTML = "";
+      return;
+    }
+
+    const orderedVersions = [...versions].sort((left, right) => right.version - left.version);
+    versionHistoryList.innerHTML = orderedVersions
+      .map(
+        (version) => `
+          <div class="border rounded-4 p-3 bg-light-subtle">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+              <div>
+                <div class="fw-semibold">Version ${version.version}</div>
+                <div class="text-muted small">${versionDate(version.created_at)}</div>
+              </div>
+              <div class="text-end small text-muted">
+                <div>${version.type} | ${version.season}</div>
+                <div>Fixed Profit: ${currency(version.fixed_profit)}</div>
+              </div>
+            </div>
+            ${renderVersionItems("Base Materials", version.items)}
+            ${
+              version.coating_items && version.coating_items.length
+                ? renderVersionItems(`Coating Materials (${decimal(version.coating_percent)}%)`, version.coating_items)
+                : ""
+            }
+          </div>
+        `
+      )
+      .join("");
+  };
+
   const loadMaterials = async () => {
     materials = (await api.getMaterials()).filter((material) => !material.is_archived);
     if (!itemsContainer.children.length) {
@@ -151,6 +217,7 @@ async function initAddFormulationPage() {
     coatingItemsContainer.innerHTML = "";
     coatingPercentInput.value = formulation.coating_percent || 0;
     (formulation.coating_items || []).forEach((item) => addCoatingRow({ material_id: item.material_id, quantity: item.quantity }));
+    renderVersions(formulation);
   };
 
   addRowButton.addEventListener("click", () => addItemRow());

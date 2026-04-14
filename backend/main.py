@@ -73,6 +73,7 @@ def serialize_formulation(document: dict, metrics: dict) -> dict:
         "archived_at": document.get("archived_at"),
         "is_archived": bool(document.get("archived_at")),
         "version_count": len(document.get("versions", [])) or 1,
+        "versions": document.get("versions", []),
         **metrics,
     }
 
