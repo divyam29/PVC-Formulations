@@ -7,6 +7,7 @@ async function initMaterialsPage() {
   const submitButton = document.getElementById("materialSubmitButton");
   const cancelEditButton = document.getElementById("cancelMaterialEdit");
   const showArchivedToggle = document.getElementById("showArchivedMaterials");
+  const exportMaterialsCsv = document.getElementById("exportMaterialsCsv");
   let editingMaterialId = null;
 
   const resetForm = () => {
@@ -100,6 +101,7 @@ async function initMaterialsPage() {
   const loadMaterials = async () => {
     setVisible(loader, true);
     try {
+      exportMaterialsCsv.href = `/exports/materials.csv?include_archived=${showArchivedToggle.checked}`;
       const data = await api.getMaterials({ include_archived: showArchivedToggle.checked });
       renderMaterials(data);
     } catch (error) {

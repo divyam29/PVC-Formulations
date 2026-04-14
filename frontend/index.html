@@ -101,6 +101,7 @@
                   <option value="All Weather">All Weather</option>
                 </select>
                 <button id="applyFilters" class="btn btn-primary">Apply</button>
+                <a id="exportAllFormulationDetailsCsv" class="btn btn-outline-secondary" href="/exports/formulations-details.csv">Export All Details CSV</a>
               </div>
             </div>
 
@@ -172,6 +173,7 @@
                 <p class="text-muted mb-0">Selected formula, cost stack, and material composition.</p>
               </div>
               <div class="d-flex gap-2 detail-actions">
+                <a id="detailExportCsvLink" href="/exports/formulations.csv" class="btn btn-sm btn-outline-dark d-none">Export CSV</a>
                 <button id="detailDuplicateButton" type="button" class="btn btn-sm btn-outline-secondary d-none">Duplicate</button>
                 <button id="detailArchiveButton" type="button" class="btn btn-sm btn-outline-danger d-none">Archive</button>
                 <button id="detailRestoreButton" type="button" class="btn btn-sm btn-outline-success d-none">Restore</button>

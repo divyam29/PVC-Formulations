@@ -16,6 +16,7 @@ async function initDashboard() {
   const detailPanel = document.getElementById("detailPanel");
   const detailEmpty = document.getElementById("detailEmpty");
   const detailEditLink = document.getElementById("detailEditLink");
+  const detailExportCsvLink = document.getElementById("detailExportCsvLink");
   const detailDuplicateButton = document.getElementById("detailDuplicateButton");
   const detailArchiveButton = document.getElementById("detailArchiveButton");
   const detailRestoreButton = document.getElementById("detailRestoreButton");
@@ -23,6 +24,7 @@ async function initDashboard() {
   const materialsLoader = document.getElementById("dashboardMaterialsLoader");
   const materialsTableBody = document.getElementById("dashboardMaterialsTableBody");
   const sortButtons = document.querySelectorAll(".sort-button");
+  const exportAllFormulationDetailsCsv = document.getElementById("exportAllFormulationDetailsCsv");
 
   let selectedFormulationId = null;
   let lastLoadedItems = [];
@@ -81,6 +83,7 @@ async function initDashboard() {
       setVisible(detailPanel, false);
       setVisible(detailEmpty, true);
       setVisible(detailEditLink, false);
+      setVisible(detailExportCsvLink, false);
       setVisible(detailDuplicateButton, false);
       setVisible(detailArchiveButton, false);
       setVisible(detailRestoreButton, false);
@@ -92,10 +95,12 @@ async function initDashboard() {
     setVisible(detailEmpty, false);
     setVisible(detailPanel, true);
     setVisible(detailEditLink, !item.is_archived);
+    setVisible(detailExportCsvLink, true);
     setVisible(detailDuplicateButton, true);
     setVisible(detailArchiveButton, !item.is_archived);
     setVisible(detailRestoreButton, item.is_archived);
     detailEditLink.href = `/add-formulation?id=${item.id}`;
+    detailExportCsvLink.href = `/exports/formulations/${item.id}.csv?without_for=${withoutForToggle.checked}`;
     detailDuplicateButton.onclick = () => duplicateFormulation(item);
     detailArchiveButton.onclick = () => toggleArchiveFormulation(item, true);
     detailRestoreButton.onclick = () => toggleArchiveFormulation(item, false);
@@ -282,6 +287,10 @@ async function initDashboard() {
     hideAlert(alert);
     setVisible(loader, true);
     try {
+      if (exportAllFormulationDetailsCsv) {
+        exportAllFormulationDetailsCsv.href = `/exports/formulations-details.csv?without_for=${withoutForToggle.checked}`;
+      }
+
       const data = await api.getFormulations({
         type: typeFilter.value,
         season: seasonFilter.value,

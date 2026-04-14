@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
+import csv
+import io
 from pathlib import Path
 from typing import Optional
 
 from bson import ObjectId
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.database import get_formulations_collection, get_materials_collection
@@ -132,26 +134,113 @@ def build_formulation_version(document: dict, version: int) -> dict:
     }
 
 
+def item_needs_material_enrichment(item: dict) -> bool:
+    return any(field not in item for field in ("unit_price", "gst", "extra", "amount_per_kg"))
+
+
+def collect_material_ids_from_items(items: list[dict]) -> list[str]:
+    material_ids: list[str] = []
+    for item in items:
+        material_id = item.get("material_id")
+        if material_id and material_id not in material_ids:
+            material_ids.append(material_id)
+    return material_ids
+
+
+def enrich_formulation_items(items: list[dict], materials_by_id: dict[str, dict]) -> list[dict]:
+    enriched = []
+    for item in items:
+        if "amount_per_kg" in item and "unit_price" in item and "gst" in item and "extra" in item:
+            enriched.append(item)
+            continue
+
+        material = materials_by_id.get(item["material_id"])
+        if not material:
+            enriched.append(
+                {
+                    **item,
+                    "unit_price": item.get("unit_price", 0),
+                    "gst": item.get("gst", 0),
+                    "extra": item.get("extra", 0),
+                    "amount_per_kg": item.get("amount_per_kg", 0),
+                }
+            )
+            continue
+
+        enriched.append(
+            {
+                **item,
+                "unit_price": material["unit_price"],
+                "gst": material["gst"],
+                "extra": material["extra"],
+                "amount_per_kg": material["amount_per_kg"],
+            }
+        )
+
+    return enriched
+
+
 def build_formulation_response(document: dict, without_for: bool = True) -> FormulationRead:
-    needs_material_lookup = any("amount_per_kg" not in item for item in document["items"]) or any(
-        "amount_per_kg" not in item for item in document.get("coating_items", [])
+    versions = document.get("versions", [])
+    needs_material_lookup = any(item_needs_material_enrichment(item) for item in document["items"]) or any(
+        item_needs_material_enrichment(item) for item in document.get("coating_items", [])
+    ) or any(
+        item_needs_material_enrichment(item)
+        for version in versions
+        for item in [*version.get("items", []), *version.get("coating_items", [])]
     )
     materials_by_id = {}
     if needs_material_lookup:
-        material_ids = [item["material_id"] for item in document["items"]]
-        material_ids.extend(item["material_id"] for item in document.get("coating_items", []))
+        material_ids = collect_material_ids_from_items(document["items"])
+        material_ids.extend(
+            material_id
+            for material_id in collect_material_ids_from_items(document.get("coating_items", []))
+            if material_id not in material_ids
+        )
+        for version in versions:
+            for material_id in collect_material_ids_from_items(version.get("items", [])):
+                if material_id not in material_ids:
+                    material_ids.append(material_id)
+            for material_id in collect_material_ids_from_items(version.get("coating_items", [])):
+                if material_id not in material_ids:
+                    material_ids.append(material_id)
         materials_by_id = get_material_map_from_ids(material_ids)
 
+    enriched_document = {
+        **document,
+        "items": enrich_formulation_items(document["items"], materials_by_id),
+        "coating_items": enrich_formulation_items(document.get("coating_items", []), materials_by_id),
+        "versions": [
+            {
+                **version,
+                "items": enrich_formulation_items(version.get("items", []), materials_by_id),
+                "coating_items": enrich_formulation_items(version.get("coating_items", []), materials_by_id),
+            }
+            for version in versions
+        ],
+    }
+
     metrics = calculate_formulation_metrics(
-        formulation_type=document["type"],
-        fixed_profit=document["fixed_profit"],
+        formulation_type=enriched_document["type"],
+        fixed_profit=enriched_document["fixed_profit"],
         without_for=without_for,
-        items=document["items"],
-        coating_percent=document.get("coating_percent", 0),
-        coating_items=document.get("coating_items", []),
+        items=enriched_document["items"],
+        coating_percent=enriched_document.get("coating_percent", 0),
+        coating_items=enriched_document.get("coating_items", []),
         materials_by_id=materials_by_id,
     )
-    return FormulationRead.model_validate(serialize_formulation(document, metrics))
+    return FormulationRead.model_validate(serialize_formulation(enriched_document, metrics))
+
+
+def csv_response(filename: str, rows: list[list]):
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerows(rows)
+    return Response(
+        content=buffer.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/health")
@@ -193,6 +282,33 @@ def list_materials(include_archived: bool = Query(default=False)):
     query = {} if include_archived else {"archived_at": None}
     materials = collection.find(query).sort("created_at", 1)
     return [MaterialRead.model_validate(serialize_material(material)) for material in materials]
+
+
+@app.get("/exports/materials.csv")
+def export_materials_csv(include_archived: bool = Query(default=False)):
+    materials = list_materials(include_archived=include_archived)
+    rows = [[
+        "Name",
+        "Unit Price",
+        "GST",
+        "Extra",
+        "Amount / Kg",
+        "Created At",
+        "Updated At",
+        "Archived",
+    ]]
+    for material in materials:
+        rows.append([
+            material.name,
+            material.unit_price,
+            material.gst,
+            material.extra,
+            material.amount_per_kg,
+            material.created_at.isoformat(),
+            material.updated_at.isoformat(),
+            "Yes" if material.is_archived else "No",
+        ])
+    return csv_response("materials.csv", rows)
 
 
 @app.get("/materials/{material_id}", response_model=MaterialRead)
@@ -328,6 +444,22 @@ def list_formulations(
     name: Optional[str] = Query(default=None),
     include_archived: bool = Query(default=False),
 ):
+    return fetch_formulations(
+        type=type,
+        season=season,
+        without_for=without_for,
+        name=name,
+        include_archived=include_archived,
+    )
+
+
+def fetch_formulations(
+    type: Optional[str] = None,
+    season: Optional[str] = None,
+    without_for: bool = True,
+    name: Optional[str] = None,
+    include_archived: bool = False,
+):
     collection = get_formulations_collection()
     query = {} if include_archived else {"archived_at": None}
 
@@ -340,6 +472,137 @@ def list_formulations(
 
     formulations = collection.find(query).sort("created_at", -1)
     return [build_formulation_response(formulation, without_for=without_for) for formulation in formulations]
+
+
+@app.get("/exports/formulations.csv")
+def export_formulations_csv(
+    type: Optional[str] = Query(default=None),
+    season: Optional[str] = Query(default=None),
+    without_for: bool = Query(default=True),
+    name: Optional[str] = Query(default=None),
+    include_archived: bool = Query(default=False),
+    all: bool = Query(default=False),
+):
+    formulations = fetch_formulations(
+        type=None if all else type,
+        season=None if all else season,
+        without_for=without_for,
+        name=None if all else name,
+        include_archived=True if all else include_archived,
+    )
+    rows = [[
+        "Name",
+        "Type",
+        "Season",
+        "Final Cost",
+        "Sale Price",
+        "Profit",
+        "Profit % Cost",
+        "Profit % Sale",
+        "Created At",
+        "Updated At",
+        "Archived",
+    ]]
+    for formulation in formulations:
+        rows.append([
+            formulation.name,
+            formulation.type,
+            formulation.season,
+            formulation.final_cost,
+            formulation.sale_price,
+            formulation.profit,
+            formulation.profit_percent_cost,
+            formulation.profit_percent_sale,
+            formulation.created_at.isoformat(),
+            formulation.updated_at.isoformat(),
+            "Yes" if formulation.is_archived else "No",
+        ])
+    return csv_response("formulations.csv", rows)
+
+
+@app.get("/exports/formulations/{formulation_id}.csv")
+def export_formulation_detail_csv(
+    formulation_id: str,
+    without_for: bool = Query(default=True),
+):
+    formulation = get_formulation(formulation_id=formulation_id, without_for=without_for)
+    rows = [
+        ["Name", formulation.name],
+        ["Type", formulation.type],
+        ["Season", formulation.season],
+        ["Final Cost", formulation.final_cost],
+        ["Sale Price", formulation.sale_price],
+        ["Profit", formulation.profit],
+        ["Profit % Cost", formulation.profit_percent_cost],
+        ["Profit % Sale", formulation.profit_percent_sale],
+        ["Fixed Profit", formulation.fixed_profit],
+        [],
+        ["Base Materials"],
+        ["Material", "Quantity", "Unit Price", "GST", "Extra", "Amount / Kg"],
+    ]
+    for item in formulation.items:
+        rows.append([item.name, item.quantity, item.unit_price, item.gst, item.extra, item.amount_per_kg])
+
+    if formulation.coating_items:
+        rows.extend([
+            [],
+            [f"Coating Materials ({formulation.coating_percent}%)"],
+            ["Material", "Quantity", "Unit Price", "GST", "Extra", "Amount / Kg"],
+        ])
+        for item in formulation.coating_items:
+            rows.append([item.name, item.quantity, item.unit_price, item.gst, item.extra, item.amount_per_kg])
+
+    return csv_response(f"{formulation.name}.csv", rows)
+
+
+@app.get("/exports/formulations-details.csv")
+def export_all_formulation_details_csv(
+    without_for: bool = Query(default=True),
+):
+    formulations = fetch_formulations(without_for=without_for)
+    rows: list[list] = []
+
+    for index, formulation in enumerate(formulations, start=1):
+        rows.extend(
+            [
+                [f"Formulation {index}", formulation.name],
+                ["Type", formulation.type],
+                ["Season", formulation.season],
+                ["Total Qty", formulation.total_qty],
+                ["Total Amount", formulation.total_amount],
+                ["Price / Kg", formulation.price_per_kg],
+                ["Misc", formulation.misc],
+                ["Final Cost", formulation.final_cost],
+                ["Sale Price", formulation.sale_price],
+                ["Profit", formulation.profit],
+                ["Profit % Cost", formulation.profit_percent_cost],
+                ["Profit % Sale", formulation.profit_percent_sale],
+                ["Fixed Profit", formulation.fixed_profit],
+                ["Created At", formulation.created_at.isoformat()],
+                ["Updated At", formulation.updated_at.isoformat()],
+                ["Archived", "Yes" if formulation.is_archived else "No"],
+                [],
+                ["Base Materials"],
+                ["Material", "Quantity", "Unit Price", "GST", "Extra", "Amount / Kg"],
+            ]
+        )
+        for item in formulation.items:
+            rows.append([item.name, item.quantity, item.unit_price, item.gst, item.extra, item.amount_per_kg])
+
+        if formulation.coating_items:
+            rows.extend(
+                [
+                    [],
+                    [f"Coating Materials ({formulation.coating_percent}%)"],
+                    ["Material", "Quantity", "Unit Price", "GST", "Extra", "Amount / Kg"],
+                ]
+            )
+            for item in formulation.coating_items:
+                rows.append([item.name, item.quantity, item.unit_price, item.gst, item.extra, item.amount_per_kg])
+
+        rows.extend([[], []])
+
+    return csv_response("formulations-details.csv", rows)
 
 
 @app.get("/formulations/{formulation_id}", response_model=FormulationRead)

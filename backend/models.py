@@ -67,6 +67,10 @@ class FormulationItemStored(BaseModel):
     material_id: str
     name: str
     quantity: float
+    unit_price: float = 0
+    gst: float = 0
+    extra: float = 0
+    amount_per_kg: float = 0
 
 
 class FormulationVersionRead(BaseModel):
