@@ -42,3 +42,29 @@ If you do not need hot reload:
 ```bash
 uvicorn backend.main:app
 ```
+
+## Deploy To Vercel
+
+This repo is set up for Vercel with a root `app.py` entrypoint that exports the FastAPI app.
+
+1. Push this repo to GitHub, GitLab, or Bitbucket.
+2. Import the repo into Vercel.
+3. Set the framework preset to `Other`.
+4. Add your environment variables in Vercel Project Settings:
+
+```bash
+MONGODB_URI=your_mongodb_connection_string
+MONGODB_DB=pvc_formulations
+```
+
+You can also use the split variables already supported by the app:
+
+```bash
+MONGODB_USERNAME=your_username
+MONGODB_PASSWORD=your_password
+MONGODB_HOST=your-cluster.mongodb.net
+MONGODB_PARAMS=retryWrites=true&w=majority&appName=your-app
+MONGODB_DB=pvc_formulations
+```
+
+After deployment, Vercel will install from `requirements.txt` and serve the FastAPI app from `app.py`.
