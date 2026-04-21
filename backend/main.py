@@ -102,6 +102,16 @@ def get_material_map_from_ids(material_ids: list[str]) -> dict[str, dict]:
     return materials_by_id
 
 
+def get_existing_material_map_from_ids(material_ids: list[str]) -> dict[str, dict]:
+    if not material_ids:
+        return {}
+
+    collection = get_materials_collection()
+    object_ids = [parse_object_id(material_id, "material_id") for material_id in material_ids]
+    materials = list(collection.find({"_id": {"$in": object_ids}, "archived_at": None}))
+    return {str(material["_id"]): material for material in materials}
+
+
 def build_stored_formulation_items(items, materials_by_id: dict[str, dict]) -> list[dict]:
     stored_items = []
     for item in items:
@@ -189,50 +199,46 @@ def build_formulation_response(document: dict, without_for: bool = True) -> Form
         if material_id not in current_material_ids
     )
 
-    needs_material_lookup = bool(current_material_ids) or any(
-        item_needs_material_enrichment(item)
-        for version in versions
-        for item in [*version.get("items", []), *version.get("coating_items", [])]
-    )
-    materials_by_id = {}
-    if needs_material_lookup:
-        material_ids = list(current_material_ids)
-        for version in versions:
-            for material_id in collect_material_ids_from_items(version.get("items", [])):
-                if material_id not in material_ids:
-                    material_ids.append(material_id)
-            for material_id in collect_material_ids_from_items(version.get("coating_items", [])):
-                if material_id not in material_ids:
-                    material_ids.append(material_id)
-        materials_by_id = get_material_map_from_ids(material_ids)
+    current_materials_by_id = get_material_map_from_ids(current_material_ids)
+
+    version_material_ids: list[str] = []
+    for version in versions:
+        for material_id in collect_material_ids_from_items(version.get("items", [])):
+            if material_id not in current_material_ids and material_id not in version_material_ids:
+                version_material_ids.append(material_id)
+        for material_id in collect_material_ids_from_items(version.get("coating_items", [])):
+            if material_id not in current_material_ids and material_id not in version_material_ids:
+                version_material_ids.append(material_id)
+    version_materials_by_id = get_existing_material_map_from_ids(version_material_ids)
+    version_lookup_materials = {**current_materials_by_id, **version_materials_by_id}
 
     enriched_document = {
         **document,
         "items": [
             {
                 **item,
-                "unit_price": materials_by_id[item["material_id"]]["unit_price"],
-                "gst": materials_by_id[item["material_id"]]["gst"],
-                "extra": materials_by_id[item["material_id"]]["extra"],
-                "amount_per_kg": materials_by_id[item["material_id"]]["amount_per_kg"],
+                "unit_price": current_materials_by_id[item["material_id"]]["unit_price"],
+                "gst": current_materials_by_id[item["material_id"]]["gst"],
+                "extra": current_materials_by_id[item["material_id"]]["extra"],
+                "amount_per_kg": current_materials_by_id[item["material_id"]]["amount_per_kg"],
             }
             for item in document["items"]
         ],
         "coating_items": [
             {
                 **item,
-                "unit_price": materials_by_id[item["material_id"]]["unit_price"],
-                "gst": materials_by_id[item["material_id"]]["gst"],
-                "extra": materials_by_id[item["material_id"]]["extra"],
-                "amount_per_kg": materials_by_id[item["material_id"]]["amount_per_kg"],
+                "unit_price": current_materials_by_id[item["material_id"]]["unit_price"],
+                "gst": current_materials_by_id[item["material_id"]]["gst"],
+                "extra": current_materials_by_id[item["material_id"]]["extra"],
+                "amount_per_kg": current_materials_by_id[item["material_id"]]["amount_per_kg"],
             }
             for item in document.get("coating_items", [])
         ],
         "versions": [
             {
                 **version,
-                "items": enrich_formulation_items(version.get("items", []), materials_by_id),
-                "coating_items": enrich_formulation_items(version.get("coating_items", []), materials_by_id),
+                "items": enrich_formulation_items(version.get("items", []), version_lookup_materials),
+                "coating_items": enrich_formulation_items(version.get("coating_items", []), version_lookup_materials),
             }
             for version in versions
         ],
@@ -245,7 +251,7 @@ def build_formulation_response(document: dict, without_for: bool = True) -> Form
         items=enriched_document["items"],
         coating_percent=enriched_document.get("coating_percent", 0),
         coating_items=enriched_document.get("coating_items", []),
-        materials_by_id=materials_by_id,
+        materials_by_id=current_materials_by_id,
     )
     return FormulationRead.model_validate(serialize_formulation(enriched_document, metrics))
 
@@ -457,7 +463,7 @@ def create_formulation(payload: FormulationCreate):
 @app.get("/formulations", response_model=list[FormulationRead])
 def list_formulations(
     type: Optional[str] = Query(default=None),
-    season: Optional[str] = Query(default=None),
+    season: Optional[list[str]] = Query(default=None),
     without_for: bool = Query(default=True),
     name: Optional[str] = Query(default=None),
     include_archived: bool = Query(default=False),
@@ -473,7 +479,7 @@ def list_formulations(
 
 def fetch_formulations(
     type: Optional[str] = None,
-    season: Optional[str] = None,
+    season: Optional[list[str]] = None,
     without_for: bool = True,
     name: Optional[str] = None,
     include_archived: bool = False,
@@ -484,7 +490,7 @@ def fetch_formulations(
     if type:
         query["type"] = type
     if season:
-        query["season"] = season
+        query["season"] = {"$in": season}
     if name:
         query["name"] = {"$regex": name, "$options": "i"}
 
@@ -495,7 +501,7 @@ def fetch_formulations(
 @app.get("/exports/formulations.csv")
 def export_formulations_csv(
     type: Optional[str] = Query(default=None),
-    season: Optional[str] = Query(default=None),
+    season: Optional[list[str]] = Query(default=None),
     without_for: bool = Query(default=True),
     name: Optional[str] = Query(default=None),
     include_archived: bool = Query(default=False),

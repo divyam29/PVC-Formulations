@@ -3,7 +3,9 @@ async function initDashboard() {
   const alert = document.getElementById("dashboardAlert");
   const tableBody = document.getElementById("formulationsTableBody");
   const typeFilter = document.getElementById("filterType");
-  const seasonFilter = document.getElementById("filterSeason");
+  const seasonFilterSummary = document.getElementById("seasonFilterSummary");
+  const seasonFilterDropdown = document.getElementById("seasonFilterDropdown");
+  const seasonFilterCheckboxes = document.querySelectorAll(".season-filter-checkbox");
   const searchInput = document.getElementById("searchFormulations");
   const withoutForToggle = document.getElementById("dashboardWithoutFor");
   const showArchivedToggle = document.getElementById("showArchivedFormulations");
@@ -23,6 +25,61 @@ async function initDashboard() {
   let selectedFormulationId = null;
   let lastLoadedItems = [];
   let sortState = { key: "name", direction: "asc" };
+  const filterStorageKey = "dashboardFilters";
+
+  const selectedSeasons = () =>
+    Array.from(seasonFilterCheckboxes)
+      .filter((input) => input.checked)
+      .map((input) => input.value)
+      .filter(Boolean);
+
+  const currentFilterState = () => ({
+    type: typeFilter.value,
+    seasons: selectedSeasons(),
+    search: searchInput.value.trim(),
+    without_for: withoutForToggle.checked,
+    include_archived: showArchivedToggle.checked,
+  });
+
+  const saveFilterState = () => {
+    window.sessionStorage.setItem(filterStorageKey, JSON.stringify(currentFilterState()));
+  };
+
+  const restoreFilterState = () => {
+    const raw = window.sessionStorage.getItem(filterStorageKey);
+    if (!raw) return;
+
+    try {
+      const state = JSON.parse(raw);
+      typeFilter.value = state.type || "";
+      searchInput.value = state.search || "";
+      withoutForToggle.checked = typeof state.without_for === "boolean" ? state.without_for : withoutForToggle.checked;
+      showArchivedToggle.checked =
+        typeof state.include_archived === "boolean" ? state.include_archived : showArchivedToggle.checked;
+      const seasons = new Set(Array.isArray(state.seasons) ? state.seasons : []);
+      seasonFilterCheckboxes.forEach((checkbox) => {
+        checkbox.checked = seasons.has(checkbox.value);
+      });
+    } catch (_) {
+      window.sessionStorage.removeItem(filterStorageKey);
+    }
+  };
+
+  const syncSeasonFilterSummary = () => {
+    const seasons = selectedSeasons();
+    if (!seasonFilterSummary) return;
+    seasonFilterSummary.textContent = !seasons.length
+      ? "All Seasons"
+      : seasons.length === 1
+        ? seasons[0]
+        : `${seasons.length} Seasons`;
+  };
+
+  const closeRowActionMenus = (exceptMenu = null) => {
+    tableBody.querySelectorAll(".row-actions-dropdown[open]").forEach((menu) => {
+      if (menu !== exceptMenu) menu.removeAttribute("open");
+    });
+  };
 
   const sortValue = (item, key) => {
     if (key === "name" || key === "season") return String(item[key] || "").toLowerCase();
@@ -102,8 +159,6 @@ async function initDashboard() {
     setText("detailName", item.name);
     setText("detailType", item.type);
     setText("detailSeason", item.season);
-    setText("detailTotalQty", decimal(item.total_qty));
-    setText("detailTotalAmount", currency(item.total_amount));
     setText("detailPricePerKg", currency(item.price_per_kg));
     setText("detailMisc", currency(item.misc));
     setText("detailFinalCost", currency(item.final_cost));
@@ -127,7 +182,7 @@ async function initDashboard() {
     lastLoadedItems = items;
 
     if (!items.length) {
-      tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-5">No formulations found.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5">No formulations found.</td></tr>';
       renderDetail(null);
       syncSortIndicators();
       return;
@@ -140,23 +195,24 @@ async function initDashboard() {
           <tr data-formulation-id="${item.id}">
             <td>
               <div class="fw-semibold">${item.name}</div>
-              <div class="table-row-summary">Final ${currency(item.final_cost)} | Sale ${currency(item.sale_price)} | Profit ${currency(item.profit)}</div>
             </td>
             <td>${item.season}</td>
             <td>${currency(item.final_cost)}</td>
             <td>${currency(item.sale_price)}</td>
             <td>${currency(item.profit)}</td>
-            <td>${decimal(item.profit_percent_cost)}%</td>
             <td class="text-end">
-              <div class="d-flex justify-content-end gap-2">
-                <button type="button" class="btn btn-sm btn-outline-secondary duplicate-formulation">Duplicate</button>
-                ${
-                  item.is_archived
-                    ? '<button type="button" class="btn btn-sm btn-outline-success restore-formulation">Restore</button>'
-                    : '<button type="button" class="btn btn-sm btn-outline-danger archive-formulation">Archive</button>'
-                }
-                ${item.is_archived ? "" : `<a class="btn btn-sm btn-outline-primary" href="/add-formulation?id=${item.id}">Edit</a>`}
-              </div>
+              <details class="row-actions-dropdown">
+                <summary class="btn btn-sm btn-outline-secondary row-actions-trigger">Actions</summary>
+                <div class="row-actions-menu">
+                  <button type="button" class="btn btn-sm btn-outline-secondary duplicate-formulation">Duplicate</button>
+                  ${
+                    item.is_archived
+                      ? '<button type="button" class="btn btn-sm btn-outline-success restore-formulation">Restore</button>'
+                      : '<button type="button" class="btn btn-sm btn-outline-danger archive-formulation">Archive</button>'
+                  }
+                  ${item.is_archived ? "" : `<a class="btn btn-sm btn-outline-primary" href="/add-formulation?id=${item.id}">Edit</a>`}
+                </div>
+              </details>
             </td>
           </tr>
         `
@@ -165,13 +221,19 @@ async function initDashboard() {
 
     tableBody.querySelectorAll("tr[data-formulation-id]").forEach((row) => {
       const formulation = sortedItems.find((entry) => entry.id === row.dataset.formulationId);
+      const actionMenu = row.querySelector(".row-actions-dropdown");
       row.addEventListener("mouseenter", () => {
         if (!selectedFormulationId) renderDetail(formulation);
       });
       row.addEventListener("click", (event) => {
-        if (event.target.closest("a, button")) return;
+        if (event.target.closest("a, button, summary, details")) return;
         renderDetail(formulation);
       });
+      if (actionMenu) {
+        actionMenu.addEventListener("toggle", () => {
+          if (actionMenu.open) closeRowActionMenus(actionMenu);
+        });
+      }
       row.querySelector(".duplicate-formulation").addEventListener("click", () => duplicateFormulation(formulation));
       const archiveButton = row.querySelector(".archive-formulation");
       if (archiveButton) archiveButton.addEventListener("click", () => toggleArchiveFormulation(formulation, true));
@@ -262,13 +324,14 @@ async function initDashboard() {
     hideAlert(alert);
     setVisible(loader, true);
     try {
+      saveFilterState();
       if (exportAllFormulationDetailsCsv) {
         exportAllFormulationDetailsCsv.href = `/exports/formulations-details.csv?without_for=${withoutForToggle.checked}`;
       }
 
       const data = await api.getFormulations({
         type: typeFilter.value,
-        season: seasonFilter.value,
+        seasons: selectedSeasons(),
         name: searchInput.value.trim(),
         without_for: withoutForToggle.checked,
         include_archived: showArchivedToggle.checked,
@@ -297,6 +360,18 @@ async function initDashboard() {
   document.getElementById("applyFilters").addEventListener("click", loadFormulations);
   withoutForToggle.addEventListener("change", loadFormulations);
   showArchivedToggle.addEventListener("change", loadFormulations);
+  seasonFilterCheckboxes.forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      syncSeasonFilterSummary();
+      saveFilterState();
+    });
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".row-actions-dropdown")) closeRowActionMenus();
+    if (seasonFilterDropdown && !event.target.closest(".filter-dropdown")) {
+      seasonFilterDropdown.removeAttribute("open");
+    }
+  });
   searchInput.addEventListener("input", () => {
     window.clearTimeout(searchInput._timer);
     searchInput._timer = window.setTimeout(loadFormulations, 250);
@@ -309,7 +384,8 @@ async function initDashboard() {
       renderRows(lastLoadedItems);
     });
   });
-
+  restoreFilterState();
+  syncSeasonFilterSummary();
   syncSortIndicators();
   await Promise.all([loadFormulations(), loadMaterials()]);
 }

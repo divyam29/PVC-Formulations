@@ -62,7 +62,11 @@ const api = {
   getFormulations(filters = {}) {
     const search = new URLSearchParams();
     if (filters.type) search.set("type", filters.type);
-    if (filters.season) search.set("season", filters.season);
+    if (Array.isArray(filters.seasons)) {
+      filters.seasons.filter(Boolean).forEach((season) => search.append("season", season));
+    } else if (filters.season) {
+      search.set("season", filters.season);
+    }
     if (filters.name) search.set("name", filters.name);
     if (typeof filters.without_for === "boolean") search.set("without_for", String(filters.without_for));
     if (typeof filters.include_archived === "boolean") search.set("include_archived", String(filters.include_archived));
