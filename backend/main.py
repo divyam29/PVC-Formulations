@@ -182,21 +182,21 @@ def enrich_formulation_items(items: list[dict], materials_by_id: dict[str, dict]
 
 def build_formulation_response(document: dict, without_for: bool = True) -> FormulationRead:
     versions = document.get("versions", [])
-    needs_material_lookup = any(item_needs_material_enrichment(item) for item in document["items"]) or any(
-        item_needs_material_enrichment(item) for item in document.get("coating_items", [])
-    ) or any(
+    current_material_ids = collect_material_ids_from_items(document["items"])
+    current_material_ids.extend(
+        material_id
+        for material_id in collect_material_ids_from_items(document.get("coating_items", []))
+        if material_id not in current_material_ids
+    )
+
+    needs_material_lookup = bool(current_material_ids) or any(
         item_needs_material_enrichment(item)
         for version in versions
         for item in [*version.get("items", []), *version.get("coating_items", [])]
     )
     materials_by_id = {}
     if needs_material_lookup:
-        material_ids = collect_material_ids_from_items(document["items"])
-        material_ids.extend(
-            material_id
-            for material_id in collect_material_ids_from_items(document.get("coating_items", []))
-            if material_id not in material_ids
-        )
+        material_ids = list(current_material_ids)
         for version in versions:
             for material_id in collect_material_ids_from_items(version.get("items", [])):
                 if material_id not in material_ids:
@@ -208,8 +208,26 @@ def build_formulation_response(document: dict, without_for: bool = True) -> Form
 
     enriched_document = {
         **document,
-        "items": enrich_formulation_items(document["items"], materials_by_id),
-        "coating_items": enrich_formulation_items(document.get("coating_items", []), materials_by_id),
+        "items": [
+            {
+                **item,
+                "unit_price": materials_by_id[item["material_id"]]["unit_price"],
+                "gst": materials_by_id[item["material_id"]]["gst"],
+                "extra": materials_by_id[item["material_id"]]["extra"],
+                "amount_per_kg": materials_by_id[item["material_id"]]["amount_per_kg"],
+            }
+            for item in document["items"]
+        ],
+        "coating_items": [
+            {
+                **item,
+                "unit_price": materials_by_id[item["material_id"]]["unit_price"],
+                "gst": materials_by_id[item["material_id"]]["gst"],
+                "extra": materials_by_id[item["material_id"]]["extra"],
+                "amount_per_kg": materials_by_id[item["material_id"]]["amount_per_kg"],
+            }
+            for item in document.get("coating_items", [])
+        ],
         "versions": [
             {
                 **version,
