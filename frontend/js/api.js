@@ -47,6 +47,10 @@ const api = {
     return this.request(`/materials/${id}`);
   },
 
+  getMaterialHistory(id) {
+    return this.request(`/materials/${id}/history`);
+  },
+
   archiveMaterial(id) {
     return this.request(`/materials/${id}/archive`, {
       method: "POST",
@@ -116,6 +120,13 @@ const api = {
 
   previewFormulation(payload) {
     return this.request("/formulations/preview", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  calculateFormulationWhatIf(payload) {
+    return this.request("/formulations/what-if", {
       method: "POST",
       body: JSON.stringify(payload),
     });

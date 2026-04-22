@@ -12,11 +12,13 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.database import get_formulations_collection, get_materials_collection
 from backend.models import (
+    FormulationWhatIfRequest,
     FormulationCreate,
     FormulationDuplicateRequest,
     FormulationPreviewRequest,
     FormulationRead,
     FormulationSummary,
+    MaterialHistoryRead,
     MaterialCreate,
     MaterialRead,
 )
@@ -57,6 +59,16 @@ def serialize_material(document: dict) -> dict:
         "updated_at": document.get("updated_at", document["created_at"]),
         "archived_at": document.get("archived_at"),
         "is_archived": bool(document.get("archived_at")),
+    }
+
+
+def build_material_history_entry(*, unit_price: float, gst: float, extra: float, amount_per_kg: float, recorded_at: datetime) -> dict:
+    return {
+        "recorded_at": recorded_at,
+        "unit_price": unit_price,
+        "gst": gst,
+        "extra": extra,
+        "amount_per_kg": amount_per_kg,
     }
 
 
@@ -291,6 +303,15 @@ def create_material(payload: MaterialCreate):
         "gst": payload.gst,
         "extra": payload.extra,
         "amount_per_kg": amount_per_kg,
+        "price_history": [
+            build_material_history_entry(
+                unit_price=payload.unit_price,
+                gst=payload.gst,
+                extra=payload.extra,
+                amount_per_kg=amount_per_kg,
+                recorded_at=now,
+            )
+        ],
         "created_at": now,
         "updated_at": now,
         "archived_at": None,
@@ -344,6 +365,34 @@ def get_material(material_id: str):
     return MaterialRead.model_validate(serialize_material(material))
 
 
+@app.get("/materials/{material_id}/history", response_model=MaterialHistoryRead)
+def get_material_history(material_id: str):
+    collection = get_materials_collection()
+    material = collection.find_one({"_id": parse_object_id(material_id, "material_id")})
+    if not material:
+        raise HTTPException(status_code=404, detail="Material not found.")
+
+    history = material.get("price_history", [])
+    if not history:
+        history = [
+            build_material_history_entry(
+                unit_price=material["unit_price"],
+                gst=material["gst"],
+                extra=material["extra"],
+                amount_per_kg=material["amount_per_kg"],
+                recorded_at=material.get("updated_at", material["created_at"]),
+            )
+        ]
+
+    return MaterialHistoryRead.model_validate(
+        {
+            "material_id": str(material["_id"]),
+            "name": material["name"],
+            "history": history,
+        }
+    )
+
+
 @app.put("/materials/{material_id}", response_model=MaterialRead)
 def update_material(material_id: str, payload: MaterialCreate):
     collection = get_materials_collection()
@@ -362,18 +411,37 @@ def update_material(material_id: str, payload: MaterialCreate):
         gst=payload.gst,
         extra=payload.extra,
     )
+    now = utc_now()
+    updates = {
+        "name": payload.name,
+        "unit_price": payload.unit_price,
+        "gst": payload.gst,
+        "extra": payload.extra,
+        "amount_per_kg": amount_per_kg,
+        "updated_at": now,
+    }
+    operation = {"$set": updates}
+    has_price_change = any(
+        [
+            existing["unit_price"] != payload.unit_price,
+            existing["gst"] != payload.gst,
+            existing["extra"] != payload.extra,
+            existing["amount_per_kg"] != amount_per_kg,
+        ]
+    )
+    if has_price_change:
+        operation["$push"] = {
+            "price_history": build_material_history_entry(
+                unit_price=payload.unit_price,
+                gst=payload.gst,
+                extra=payload.extra,
+                amount_per_kg=amount_per_kg,
+                recorded_at=now,
+            )
+        }
     collection.update_one(
         {"_id": object_id},
-        {
-            "$set": {
-                "name": payload.name,
-                "unit_price": payload.unit_price,
-                "gst": payload.gst,
-                "extra": payload.extra,
-                "amount_per_kg": amount_per_kg,
-                "updated_at": utc_now(),
-            }
-        },
+        operation,
     )
 
     updated = collection.find_one({"_id": object_id})
@@ -427,6 +495,37 @@ def preview_formulation(payload: FormulationPreviewRequest):
             **metrics,
         }
     )
+
+
+@app.post("/formulations/what-if", response_model=FormulationSummary)
+def calculate_formulation_what_if(payload: FormulationWhatIfRequest):
+    def normalize_items(items):
+        return [
+            {
+                "name": item.name,
+                "quantity": item.quantity,
+                "unit_price": item.unit_price,
+                "gst": item.gst,
+                "extra": item.extra,
+                "amount_per_kg": calculate_material_amount_per_kg(
+                    unit_price=item.unit_price,
+                    gst=item.gst,
+                    extra=item.extra,
+                ),
+            }
+            for item in items
+        ]
+
+    metrics = calculate_formulation_metrics(
+        formulation_type=payload.type,
+        fixed_profit=payload.fixed_profit,
+        without_for=payload.without_for,
+        items=normalize_items(payload.items),
+        coating_percent=payload.coating_percent,
+        coating_items=normalize_items(payload.coating_items),
+        materials_by_id={},
+    )
+    return FormulationSummary.model_validate({"type": payload.type, **metrics})
 
 
 @app.post("/formulations", response_model=FormulationRead, status_code=201)

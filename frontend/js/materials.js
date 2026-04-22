@@ -8,7 +8,19 @@ async function initMaterialsPage() {
   const cancelEditButton = document.getElementById("cancelMaterialEdit");
   const showArchivedToggle = document.getElementById("showArchivedMaterials");
   const exportMaterialsCsv = document.getElementById("exportMaterialsCsv");
+  const historySubtitle = document.getElementById("materialHistorySubtitle");
+  const historyEmpty = document.getElementById("materialHistoryEmpty");
+  const historyPanel = document.getElementById("materialHistoryPanel");
+  const historyChart = document.getElementById("materialHistoryChart");
+  const historyTableBody = document.getElementById("materialHistoryTableBody");
   let editingMaterialId = null;
+  let selectedHistoryMaterialId = null;
+
+  const formatDateTime = (value) =>
+    new Intl.DateTimeFormat("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(value));
 
   const resetForm = () => {
     editingMaterialId = null;
@@ -17,6 +29,81 @@ async function initMaterialsPage() {
     formTitle.textContent = "Add Material";
     submitButton.textContent = "Save Material";
     setVisible(cancelEditButton, false);
+  };
+
+  const renderHistoryChart = (points) => {
+    if (!points.length) {
+      historyChart.innerHTML = "";
+      return;
+    }
+
+    const values = points.map((entry) => Number(entry.amount_per_kg || 0));
+    const maxValue = Math.max(...values);
+    const minValue = Math.min(...values);
+    const xStep = points.length > 1 ? 560 / (points.length - 1) : 0;
+    const valueRange = maxValue - minValue || 1;
+    const toY = (value) => 180 - ((value - minValue) / valueRange) * 120;
+    const polylinePoints = points.map((entry, index) => `${40 + index * xStep},${toY(Number(entry.amount_per_kg || 0))}`).join(" ");
+    const circles = points
+      .map(
+        (entry, index) =>
+          `<circle cx="${40 + index * xStep}" cy="${toY(Number(entry.amount_per_kg || 0))}" r="4.5" fill="#0f4c81"></circle>`
+      )
+      .join("");
+    const labels = points
+      .map(
+        (entry, index) =>
+          `<text x="${40 + index * xStep}" y="204" text-anchor="middle" class="history-axis-label">${
+            points.length > 5 ? index + 1 : new Date(entry.recorded_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+          }</text>`
+      )
+      .join("");
+
+    historyChart.innerHTML = `
+      <rect x="0" y="0" width="640" height="220" rx="22" fill="rgba(255,255,255,0.55)"></rect>
+      <line x1="40" y1="180" x2="600" y2="180" stroke="rgba(18,32,51,0.12)" stroke-width="1"></line>
+      <line x1="40" y1="40" x2="40" y2="180" stroke="rgba(18,32,51,0.12)" stroke-width="1"></line>
+      <polyline fill="none" stroke="#0f4c81" stroke-width="3" points="${polylinePoints}"></polyline>
+      ${circles}
+      ${labels}
+      <text x="40" y="28" class="history-value-label">Amount / Kg</text>
+      <text x="600" y="28" text-anchor="end" class="history-value-label">${currency(maxValue)}</text>
+      <text x="600" y="196" text-anchor="end" class="history-value-label">${currency(minValue)}</text>
+    `;
+  };
+
+  const renderHistory = (material, history) => {
+    selectedHistoryMaterialId = material.material_id;
+    historySubtitle.textContent = `Price history for ${material.name}`;
+    setVisible(historyEmpty, false);
+    setVisible(historyPanel, true);
+    renderHistoryChart(history);
+    historyTableBody.innerHTML = history.length
+      ? history
+          .slice()
+          .reverse()
+          .map(
+            (entry) => `
+              <tr>
+                <td>${formatDateTime(entry.recorded_at)}</td>
+                <td>${currency(entry.unit_price)}</td>
+                <td>${decimal(entry.gst)}%</td>
+                <td>${currency(entry.extra)}</td>
+                <td class="fw-semibold">${currency(entry.amount_per_kg)}</td>
+              </tr>
+            `
+          )
+          .join("")
+      : '<tr><td colspan="5" class="text-center text-muted py-4">No history found.</td></tr>';
+  };
+
+  const loadMaterialHistory = async (materialId) => {
+    try {
+      const history = await api.getMaterialHistory(materialId);
+      renderHistory(history, history.history || []);
+    } catch (error) {
+      showAlert(alert, error.message);
+    }
   };
 
   const toggleArchive = async (material, archive) => {
@@ -55,7 +142,12 @@ async function initMaterialsPage() {
             <td>${currency(item.amount_per_kg)}</td>
             <td class="text-end">
               <div class="d-flex justify-content-end gap-2">
-                ${item.is_archived ? '<button type="button" class="btn btn-sm btn-outline-success restore-material" data-id="' + item.id + '">Restore</button>' : '<button type="button" class="btn btn-sm btn-outline-primary edit-material" data-id="' + item.id + '">Edit</button><button type="button" class="btn btn-sm btn-outline-danger archive-material" data-id="' + item.id + '">Archive</button>'}
+                <button type="button" class="btn btn-sm btn-outline-secondary history-material" data-id="${item.id}">History</button>
+                ${
+                  item.is_archived
+                    ? `<button type="button" class="btn btn-sm btn-outline-success restore-material" data-id="${item.id}">Restore</button>`
+                    : `<button type="button" class="btn btn-sm btn-outline-primary edit-material" data-id="${item.id}">Edit</button><button type="button" class="btn btn-sm btn-outline-danger archive-material" data-id="${item.id}">Archive</button>`
+                }
               </div>
             </td>
           </tr>
@@ -76,11 +168,16 @@ async function initMaterialsPage() {
           formTitle.textContent = "Edit Material";
           submitButton.textContent = "Update Material";
           setVisible(cancelEditButton, true);
+          await loadMaterialHistory(material.id);
           window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (error) {
           showAlert(alert, error.message);
         }
       });
+    });
+
+    tableBody.querySelectorAll(".history-material").forEach((button) => {
+      button.addEventListener("click", () => loadMaterialHistory(button.dataset.id));
     });
 
     tableBody.querySelectorAll(".archive-material").forEach((button) => {
@@ -128,8 +225,12 @@ async function initMaterialsPage() {
         await api.createMaterial(payload);
         showAlert(alert, "Material saved successfully.", "success");
       }
+      const historyTargetId = editingMaterialId;
       resetForm();
       await loadMaterials();
+      if (historyTargetId) {
+        await loadMaterialHistory(historyTargetId);
+      }
     } catch (error) {
       showAlert(alert, error.message);
     }
@@ -143,6 +244,9 @@ async function initMaterialsPage() {
 
   resetForm();
   await loadMaterials();
+  if (selectedHistoryMaterialId) {
+    await loadMaterialHistory(selectedHistoryMaterialId);
+  }
 }
 
 if (document.body.dataset.page === "materials") {

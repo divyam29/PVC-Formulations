@@ -7,8 +7,13 @@ async function initDashboard() {
   const seasonFilterDropdown = document.getElementById("seasonFilterDropdown");
   const seasonFilterCheckboxes = document.querySelectorAll(".season-filter-checkbox");
   const searchInput = document.getElementById("searchFormulations");
+  const clearFiltersButton = document.getElementById("clearFilters");
   const withoutForToggle = document.getElementById("dashboardWithoutFor");
   const showArchivedToggle = document.getElementById("showArchivedFormulations");
+  const compareFormulationA = document.getElementById("compareFormulationA");
+  const compareFormulationB = document.getElementById("compareFormulationB");
+  const comparisonEmpty = document.getElementById("comparisonEmpty");
+  const comparisonPanel = document.getElementById("comparisonPanel");
   const detailPanel = document.getElementById("detailPanel");
   const detailEmpty = document.getElementById("detailEmpty");
   const detailEditLink = document.getElementById("detailEditLink");
@@ -19,11 +24,21 @@ async function initDashboard() {
   const materialsAlert = document.getElementById("dashboardMaterialsAlert");
   const materialsLoader = document.getElementById("dashboardMaterialsLoader");
   const materialsTableBody = document.getElementById("dashboardMaterialsTableBody");
+  const whatIfAlert = document.getElementById("whatIfAlert");
+  const whatIfFixedProfit = document.getElementById("whatIfFixedProfit");
+  const whatIfCoatingPercent = document.getElementById("whatIfCoatingPercent");
+  const whatIfItemsContainer = document.getElementById("whatIfItemsContainer");
+  const whatIfCoatingGroup = document.getElementById("whatIfCoatingGroup");
+  const whatIfCoatingItemsContainer = document.getElementById("whatIfCoatingItemsContainer");
+  const whatIfResults = document.getElementById("whatIfResults");
+  const runWhatIfButton = document.getElementById("runWhatIf");
+  const resetWhatIfButton = document.getElementById("resetWhatIf");
   const sortButtons = document.querySelectorAll(".sort-button");
   const exportAllFormulationDetailsCsv = document.getElementById("exportAllFormulationDetailsCsv");
 
   let selectedFormulationId = null;
   let lastLoadedItems = [];
+  let selectedFormulation = null;
   let sortState = { key: "name", direction: "asc" };
   const filterStorageKey = "dashboardFilters";
 
@@ -73,6 +88,18 @@ async function initDashboard() {
       : seasons.length === 1
         ? seasons[0]
         : `${seasons.length} Seasons`;
+  };
+
+  const resetFilters = () => {
+    typeFilter.value = "";
+    searchInput.value = "";
+    withoutForToggle.checked = true;
+    showArchivedToggle.checked = false;
+    seasonFilterCheckboxes.forEach((checkbox) => {
+      checkbox.checked = false;
+    });
+    syncSeasonFilterSummary();
+    saveFilterState();
   };
 
   const closeRowActionMenus = (exceptMenu = null) => {
@@ -128,8 +155,138 @@ async function initDashboard() {
     </div>
   `;
 
+  const renderWhatIfRows = (container, materials) => {
+    container.innerHTML = materials
+      .map(
+        (material, index) => `
+          <div class="what-if-row">
+            <div class="what-if-row-title">${material.name}</div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small">Qty</label>
+                <input class="form-control form-control-sm what-if-quantity" type="number" step="0.01" min="0.01" value="${material.quantity}" data-index="${index}" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Unit Price</label>
+                <input class="form-control form-control-sm what-if-unit-price" type="number" step="0.01" min="0" value="${material.unit_price}" data-index="${index}" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small">GST</label>
+                <input class="form-control form-control-sm what-if-gst" type="number" step="0.01" min="0" value="${material.gst}" data-index="${index}" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Extra</label>
+                <input class="form-control form-control-sm what-if-extra" type="number" step="0.01" value="${material.extra}" data-index="${index}" />
+              </div>
+            </div>
+          </div>
+        `
+      )
+      .join("");
+  };
+
+  const setWhatIfResult = (id, value, suffix = "") => setText(id, `${value}${suffix}`);
+
+  const renderWhatIfResults = (metrics) => {
+    setVisible(whatIfResults, true);
+    setText("whatIfPricePerKg", currency(metrics.price_per_kg));
+    setText("whatIfFinalCost", currency(metrics.final_cost));
+    setText("whatIfSalePrice", currency(metrics.sale_price));
+    setText("whatIfProfit", currency(metrics.profit));
+    setText("whatIfProfitPercentCost", `${decimal(metrics.profit_percent_cost)}%`);
+    setText("whatIfProfitPercentSale", `${decimal(metrics.profit_percent_sale)}%`);
+  };
+
+  const renderWhatIf = (item) => {
+    selectedFormulation = item;
+    hideAlert(whatIfAlert);
+    setVisible(whatIfResults, false);
+    if (!item) {
+      whatIfItemsContainer.innerHTML = "";
+      whatIfCoatingItemsContainer.innerHTML = "";
+      whatIfFixedProfit.value = "";
+      whatIfCoatingPercent.value = "";
+      setVisible(whatIfCoatingGroup, false);
+      return;
+    }
+
+    whatIfFixedProfit.value = item.fixed_profit;
+    whatIfCoatingPercent.value = item.coating_percent || 0;
+    renderWhatIfRows(whatIfItemsContainer, item.items || []);
+    const coatingItems = item.coating_items || [];
+    setVisible(whatIfCoatingGroup, coatingItems.length > 0);
+    renderWhatIfRows(whatIfCoatingItemsContainer, coatingItems);
+  };
+
+  const collectWhatIfItems = (container) =>
+    Array.from(container.querySelectorAll(".what-if-row")).map((row) => ({
+      name: row.querySelector(".what-if-row-title").textContent.trim(),
+      quantity: Number(row.querySelector(".what-if-quantity").value),
+      unit_price: Number(row.querySelector(".what-if-unit-price").value),
+      gst: Number(row.querySelector(".what-if-gst").value),
+      extra: Number(row.querySelector(".what-if-extra").value),
+    }));
+
+  const runWhatIf = async () => {
+    if (!selectedFormulation) return;
+    hideAlert(whatIfAlert);
+    try {
+      const result = await api.calculateFormulationWhatIf({
+        type: selectedFormulation.type,
+        fixed_profit: Number(whatIfFixedProfit.value || 0),
+        without_for: withoutForToggle.checked,
+        coating_percent: Number(whatIfCoatingPercent.value || 0),
+        items: collectWhatIfItems(whatIfItemsContainer),
+        coating_items: collectWhatIfItems(whatIfCoatingItemsContainer),
+      });
+      renderWhatIfResults(result);
+    } catch (error) {
+      showAlert(whatIfAlert, error.message);
+    }
+  };
+
+  const renderComparison = () => {
+    const left = lastLoadedItems.find((item) => item.id === compareFormulationA.value);
+    const right = lastLoadedItems.find((item) => item.id === compareFormulationB.value);
+    if (!left || !right || left.id === right.id) {
+      setVisible(comparisonPanel, false);
+      setVisible(comparisonEmpty, true);
+      return;
+    }
+
+    const fill = (suffix, item) => {
+      setText(`compareName${suffix}`, item.name);
+      setText(`compareSeason${suffix}`, `${item.type} | ${item.season}`);
+      setText(`comparePrice${suffix}`, currency(item.price_per_kg));
+      setText(`compareFinal${suffix}`, currency(item.final_cost));
+      setText(`compareSale${suffix}`, currency(item.sale_price));
+      setText(`compareProfit${suffix}`, currency(item.profit));
+      setText(`compareProfitCost${suffix}`, `${decimal(item.profit_percent_cost)}%`);
+      setText(`compareProfitSale${suffix}`, `${decimal(item.profit_percent_sale)}%`);
+    };
+
+    fill("A", left);
+    fill("B", right);
+    setVisible(comparisonEmpty, false);
+    setVisible(comparisonPanel, true);
+  };
+
+  const syncComparisonOptions = (items) => {
+    const previousA = compareFormulationA.value;
+    const previousB = compareFormulationB.value;
+    const options = ['<option value="">Select formulation</option>']
+      .concat(items.map((item) => `<option value="${item.id}">${item.name}</option>`))
+      .join("");
+    compareFormulationA.innerHTML = options;
+    compareFormulationB.innerHTML = options;
+    if (items.some((item) => item.id === previousA)) compareFormulationA.value = previousA;
+    if (items.some((item) => item.id === previousB)) compareFormulationB.value = previousB;
+    renderComparison();
+  };
+
   const renderDetail = (item) => {
     if (!item) {
+      selectedFormulation = null;
       selectedFormulationId = null;
       setVisible(detailPanel, false);
       setVisible(detailEmpty, true);
@@ -138,6 +295,7 @@ async function initDashboard() {
       setVisible(detailDuplicateButton, false);
       setVisible(detailArchiveButton, false);
       setVisible(detailRestoreButton, false);
+      renderWhatIf(null);
       syncSelectedRow();
       return;
     }
@@ -175,11 +333,13 @@ async function initDashboard() {
       renderMaterialGroup("Base Materials", item.items),
       coatingItems.length ? renderMaterialGroup(`Coating Materials (${decimal(item.coating_percent)}%)`, coatingItems) : "",
     ].join("");
+    renderWhatIf(item);
     syncSelectedRow();
   };
 
   const renderRows = (items) => {
     lastLoadedItems = items;
+    syncComparisonOptions(items);
 
     if (!items.length) {
       tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5">No formulations found.</td></tr>';
@@ -358,8 +518,16 @@ async function initDashboard() {
   };
 
   document.getElementById("applyFilters").addEventListener("click", loadFormulations);
+  clearFiltersButton.addEventListener("click", async () => {
+    resetFilters();
+    await loadFormulations();
+  });
   withoutForToggle.addEventListener("change", loadFormulations);
   showArchivedToggle.addEventListener("change", loadFormulations);
+  compareFormulationA.addEventListener("change", renderComparison);
+  compareFormulationB.addEventListener("change", renderComparison);
+  runWhatIfButton.addEventListener("click", runWhatIf);
+  resetWhatIfButton.addEventListener("click", () => renderWhatIf(selectedFormulation));
   seasonFilterCheckboxes.forEach((checkbox) => {
     checkbox.addEventListener("change", () => {
       syncSeasonFilterSummary();

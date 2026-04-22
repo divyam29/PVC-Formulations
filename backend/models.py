@@ -33,6 +33,20 @@ class MaterialRead(BaseModel):
     is_archived: bool = False
 
 
+class MaterialPriceHistoryEntry(BaseModel):
+    recorded_at: datetime
+    unit_price: float
+    gst: float
+    extra: float
+    amount_per_kg: float
+
+
+class MaterialHistoryRead(BaseModel):
+    material_id: str
+    name: str
+    history: List[MaterialPriceHistoryEntry] = Field(default_factory=list)
+
+
 class FormulationItemCreate(BaseModel):
     material_id: str = Field(..., min_length=1)
     quantity: float = Field(..., gt=0)
@@ -151,3 +165,35 @@ class FormulationSummary(BaseModel):
     profit: float
     profit_percent_cost: float
     profit_percent_sale: float
+
+
+class WhatIfItem(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    quantity: float = Field(..., gt=0)
+    unit_price: float = Field(..., ge=0)
+    gst: float = Field(..., ge=0)
+    extra: float
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        return value.strip()
+
+
+class FormulationWhatIfRequest(BaseModel):
+    type: FormulationType
+    fixed_profit: float = Field(..., ge=0)
+    without_for: bool = True
+    coating_percent: float = Field(default=0, ge=0, le=100)
+    items: List[WhatIfItem] = Field(..., min_length=1)
+    coating_items: List[WhatIfItem] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_coating(self):
+        has_coating_items = bool(self.coating_items)
+        has_coating_percent = self.coating_percent > 0
+
+        if has_coating_items != has_coating_percent:
+            raise ValueError("Coating percent and coating materials must be provided together.")
+
+        return self

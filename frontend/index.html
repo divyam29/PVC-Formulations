@@ -73,6 +73,7 @@
                   </div>
                 </details>
                 <button id="applyFilters" class="btn btn-primary">Apply</button>
+                <button id="clearFilters" type="button" class="btn btn-outline-secondary">Clear</button>
                 <a id="exportAllFormulationDetailsCsv" class="btn btn-outline-secondary" href="/exports/formulations-details.csv">Export All Details CSV</a>
               </div>
             </div>
@@ -128,11 +129,67 @@
                 </tbody>
               </table>
             </div>
+
+            <details class="dashboard-section-toggle comparison-section mt-4">
+              <summary class="dashboard-section-summary">
+                <div>
+                  <h3 class="h5 mb-1">Compare Formulations</h3>
+                  <p class="text-muted mb-0">Pick any two formulations and compare the current numbers side by side.</p>
+                </div>
+              </summary>
+              <div class="pt-4">
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label for="compareFormulationA" class="form-label">Formulation A</label>
+                    <select id="compareFormulationA" class="form-select">
+                      <option value="">Select formulation</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="compareFormulationB" class="form-label">Formulation B</label>
+                    <select id="compareFormulationB" class="form-select">
+                      <option value="">Select formulation</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="comparisonEmpty" class="text-muted small">Select two different formulations to compare.</div>
+                <div id="comparisonPanel" class="comparison-grid d-none">
+                  <article class="comparison-card">
+                    <div class="comparison-card-header">
+                      <h4 id="compareNameA" class="h6 mb-1">-</h4>
+                      <div id="compareSeasonA" class="text-muted small">-</div>
+                    </div>
+                    <div class="comparison-metrics">
+                      <div><span>Price / Kg</span><strong id="comparePriceA">₹0.00</strong></div>
+                      <div><span>Final Cost</span><strong id="compareFinalA">₹0.00</strong></div>
+                      <div><span>Sale Price</span><strong id="compareSaleA">₹0.00</strong></div>
+                      <div><span>Profit ₹</span><strong id="compareProfitA">₹0.00</strong></div>
+                      <div><span>Profit % Cost</span><strong id="compareProfitCostA">0.00%</strong></div>
+                      <div><span>Profit % Sale</span><strong id="compareProfitSaleA">0.00%</strong></div>
+                    </div>
+                  </article>
+                  <article class="comparison-card">
+                    <div class="comparison-card-header">
+                      <h4 id="compareNameB" class="h6 mb-1">-</h4>
+                      <div id="compareSeasonB" class="text-muted small">-</div>
+                    </div>
+                    <div class="comparison-metrics">
+                      <div><span>Price / Kg</span><strong id="comparePriceB">₹0.00</strong></div>
+                      <div><span>Final Cost</span><strong id="compareFinalB">₹0.00</strong></div>
+                      <div><span>Sale Price</span><strong id="compareSaleB">₹0.00</strong></div>
+                      <div><span>Profit ₹</span><strong id="compareProfitB">₹0.00</strong></div>
+                      <div><span>Profit % Cost</span><strong id="compareProfitCostB">0.00%</strong></div>
+                      <div><span>Profit % Sale</span><strong id="compareProfitSaleB">0.00%</strong></div>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </details>
           </section>
         </div>
 
         <div class="col-xl-4">
-          <section class="panel-card p-4 h-100">
+          <section class="panel-card p-4 h-100 dashboard-detail-card">
             <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
               <div>
                 <h2 class="h4 mb-1">Formulation Detail</h2>
@@ -198,6 +255,68 @@
                   <strong id="detailProfitPercentSale">0.00%</strong>
                 </div>
               </div>
+
+              <details class="dashboard-section-toggle mt-4" id="whatIfSection">
+                <summary class="dashboard-section-summary">
+                  <div>
+                    <h3 class="h6 mb-1">What-If Calculator</h3>
+                    <p class="text-muted mb-0">Try temporary pricing or quantity changes without saving them.</p>
+                  </div>
+                </summary>
+                <div class="pt-4">
+                  <div id="whatIfAlert" class="alert d-none" role="alert"></div>
+                  <div class="row g-3 mb-3">
+                    <div class="col-6">
+                      <label for="whatIfFixedProfit" class="form-label">Fixed Profit</label>
+                      <input id="whatIfFixedProfit" type="number" step="0.01" min="0" class="form-control" />
+                    </div>
+                    <div class="col-6">
+                      <label for="whatIfCoatingPercent" class="form-label">Coating %</label>
+                      <input id="whatIfCoatingPercent" type="number" step="0.01" min="0" max="100" class="form-control" />
+                    </div>
+                  </div>
+                  <div class="what-if-groups">
+                    <div class="mb-3">
+                      <div class="fw-semibold mb-2">Base Materials</div>
+                      <div id="whatIfItemsContainer" class="d-grid gap-2"></div>
+                    </div>
+                    <div id="whatIfCoatingGroup" class="mb-3 d-none">
+                      <div class="fw-semibold mb-2">Coating Materials</div>
+                      <div id="whatIfCoatingItemsContainer" class="d-grid gap-2"></div>
+                    </div>
+                  </div>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button id="runWhatIf" type="button" class="btn btn-primary btn-sm">Recalculate</button>
+                    <button id="resetWhatIf" type="button" class="btn btn-outline-secondary btn-sm">Reset</button>
+                  </div>
+                  <div id="whatIfResults" class="preview-grid mt-3 d-none">
+                    <div class="preview-item">
+                      <span>Price / Kg</span>
+                      <strong id="whatIfPricePerKg">₹0.00</strong>
+                    </div>
+                    <div class="preview-item">
+                      <span>Final Cost</span>
+                      <strong id="whatIfFinalCost">₹0.00</strong>
+                    </div>
+                    <div class="preview-item">
+                      <span>Sale Price</span>
+                      <strong id="whatIfSalePrice">₹0.00</strong>
+                    </div>
+                    <div class="preview-item">
+                      <span>Profit ₹</span>
+                      <strong id="whatIfProfit">₹0.00</strong>
+                    </div>
+                    <div class="preview-item">
+                      <span>Profit % Cost</span>
+                      <strong id="whatIfProfitPercentCost">0.00%</strong>
+                    </div>
+                    <div class="preview-item">
+                      <span>Profit % Sale</span>
+                      <strong id="whatIfProfitPercentSale">0.00%</strong>
+                    </div>
+                  </div>
+                </div>
+              </details>
             </div>
           </section>
         </div>

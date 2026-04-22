@@ -96,6 +96,39 @@
               </table>
             </div>
           </section>
+
+          <section class="panel-card p-4 mt-4">
+            <div class="d-flex justify-content-between align-items-center gap-3 mb-3 section-header-wrap">
+              <div>
+                <h2 class="h4 mb-1">Price Change Log</h2>
+                <p id="materialHistorySubtitle" class="text-muted mb-0">Select a material to view its price history.</p>
+              </div>
+            </div>
+            <div id="materialHistoryEmpty" class="text-muted py-4">Use the History button on a material to open its graph.</div>
+            <div id="materialHistoryPanel" class="d-none">
+              <div class="history-chart-wrap mb-3">
+                <svg id="materialHistoryChart" class="history-chart" viewBox="0 0 640 220" preserveAspectRatio="none"></svg>
+              </div>
+              <div class="table-responsive">
+                <table class="table align-middle">
+                  <thead>
+                    <tr>
+                      <th>Recorded At</th>
+                      <th>Unit Price</th>
+                      <th>GST</th>
+                      <th>Extra</th>
+                      <th>Amount / Kg</th>
+                    </tr>
+                  </thead>
+                  <tbody id="materialHistoryTableBody">
+                    <tr>
+                      <td colspan="5" class="text-center text-muted py-4">No history found.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </main>
