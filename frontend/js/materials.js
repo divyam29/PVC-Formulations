@@ -13,6 +13,9 @@ async function initMaterialsPage() {
   const historyPanel = document.getElementById("materialHistoryPanel");
   const historyChart = document.getElementById("materialHistoryChart");
   const historyTableBody = document.getElementById("materialHistoryTableBody");
+  const historyLatestAmount = document.getElementById("historyLatestAmount");
+  const historyHighestAmount = document.getElementById("historyHighestAmount");
+  const historyLowestAmount = document.getElementById("historyLowestAmount");
   let editingMaterialId = null;
   let selectedHistoryMaterialId = null;
 
@@ -40,35 +43,64 @@ async function initMaterialsPage() {
     const values = points.map((entry) => Number(entry.amount_per_kg || 0));
     const maxValue = Math.max(...values);
     const minValue = Math.min(...values);
-    const xStep = points.length > 1 ? 560 / (points.length - 1) : 0;
+    const latestValue = values[values.length - 1];
+    const xStep = points.length > 1 ? 540 / (points.length - 1) : 0;
+    const chartTop = 34;
+    const chartBottom = 176;
+    const chartLeft = 54;
+    const chartRight = 594;
     const valueRange = maxValue - minValue || 1;
-    const toY = (value) => 180 - ((value - minValue) / valueRange) * 120;
-    const polylinePoints = points.map((entry, index) => `${40 + index * xStep},${toY(Number(entry.amount_per_kg || 0))}`).join(" ");
+    const toY = (value) => chartBottom - ((value - minValue) / valueRange) * (chartBottom - chartTop);
+    const polylinePoints = points
+      .map((entry, index) => `${chartLeft + index * xStep},${toY(Number(entry.amount_per_kg || 0))}`)
+      .join(" ");
+    const areaPoints = `${chartLeft},${chartBottom} ${polylinePoints} ${chartRight},${chartBottom}`;
+    const gridLines = [0, 0.5, 1]
+      .map((ratio) => {
+        const y = chartBottom - (chartBottom - chartTop) * ratio;
+        return `<line x1="${chartLeft}" y1="${y}" x2="${chartRight}" y2="${y}" class="history-grid-line"></line>`;
+      })
+      .join("");
     const circles = points
       .map(
         (entry, index) =>
-          `<circle cx="${40 + index * xStep}" cy="${toY(Number(entry.amount_per_kg || 0))}" r="4.5" fill="#0f4c81"></circle>`
+          `<circle cx="${chartLeft + index * xStep}" cy="${toY(Number(entry.amount_per_kg || 0))}" r="4.5" class="history-point"></circle>`
       )
       .join("");
     const labels = points
       .map(
         (entry, index) =>
-          `<text x="${40 + index * xStep}" y="204" text-anchor="middle" class="history-axis-label">${
+          `<text x="${chartLeft + index * xStep}" y="202" text-anchor="middle" class="history-axis-label">${
             points.length > 5 ? index + 1 : new Date(entry.recorded_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
           }</text>`
       )
       .join("");
 
     historyChart.innerHTML = `
-      <rect x="0" y="0" width="640" height="220" rx="22" fill="rgba(255,255,255,0.55)"></rect>
-      <line x1="40" y1="180" x2="600" y2="180" stroke="rgba(18,32,51,0.12)" stroke-width="1"></line>
-      <line x1="40" y1="40" x2="40" y2="180" stroke="rgba(18,32,51,0.12)" stroke-width="1"></line>
-      <polyline fill="none" stroke="#0f4c81" stroke-width="3" points="${polylinePoints}"></polyline>
+      <defs>
+        <linearGradient id="historyAreaFill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="rgba(15, 76, 129, 0.22)"></stop>
+          <stop offset="100%" stop-color="rgba(15, 76, 129, 0.02)"></stop>
+        </linearGradient>
+        <linearGradient id="historyLineStroke" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stop-color="#2f8ae5"></stop>
+          <stop offset="100%" stop-color="#0f4c81"></stop>
+        </linearGradient>
+        <filter id="historyGlow">
+          <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="rgba(15,76,129,0.18)"></feDropShadow>
+        </filter>
+      </defs>
+      <rect x="0" y="0" width="640" height="220" rx="24" class="history-surface"></rect>
+      ${gridLines}
+      <line x1="${chartLeft}" y1="${chartBottom}" x2="${chartRight}" y2="${chartBottom}" class="history-axis-line"></line>
+      <polyline fill="url(#historyAreaFill)" points="${areaPoints}"></polyline>
+      <polyline fill="none" filter="url(#historyGlow)" stroke="url(#historyLineStroke)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="${polylinePoints}"></polyline>
       ${circles}
       ${labels}
-      <text x="40" y="28" class="history-value-label">Amount / Kg</text>
-      <text x="600" y="28" text-anchor="end" class="history-value-label">${currency(maxValue)}</text>
-      <text x="600" y="196" text-anchor="end" class="history-value-label">${currency(minValue)}</text>
+      <text x="${chartLeft}" y="24" class="history-value-label">Amount / Kg Trend</text>
+      <text x="${chartRight}" y="24" text-anchor="end" class="history-value-label">Latest ${currency(latestValue)}</text>
+      <text x="${chartRight}" y="${chartTop}" text-anchor="end" class="history-axis-value">${currency(maxValue)}</text>
+      <text x="${chartRight}" y="${chartBottom - 6}" text-anchor="end" class="history-axis-value">${currency(minValue)}</text>
     `;
   };
 
@@ -77,6 +109,11 @@ async function initMaterialsPage() {
     historySubtitle.textContent = `Price history for ${material.name}`;
     setVisible(historyEmpty, false);
     setVisible(historyPanel, true);
+    const values = history.map((entry) => Number(entry.amount_per_kg || 0));
+    const latestValue = values[values.length - 1] || 0;
+    setText("historyLatestAmount", currency(latestValue));
+    setText("historyHighestAmount", currency(values.length ? Math.max(...values) : 0));
+    setText("historyLowestAmount", currency(values.length ? Math.min(...values) : 0));
     renderHistoryChart(history);
     historyTableBody.innerHTML = history.length
       ? history
