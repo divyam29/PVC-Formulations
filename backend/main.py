@@ -10,8 +10,9 @@ from typing import Optional
 from bson import ObjectId
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from itsdangerous import BadSignature, URLSafeSerializer
+from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -58,7 +59,9 @@ if not SUPERUSER_USERNAME or not SUPERUSER_PASSWORD:
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 STATIC_DIR = FRONTEND_DIR
+TEMPLATES_DIR = BASE_DIR / "templates"
 auth_serializer = URLSafeSerializer(SESSION_SECRET, salt="adinath-auth")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def utc_now() -> datetime:
@@ -142,6 +145,8 @@ def serialize_party(document: dict) -> dict:
 
 
 def serialize_profit_order(document: dict) -> dict:
+    total_sale = document["total_sale"]
+    total_profit = document["total_profit"]
     return {
         "id": str(document["_id"]),
         "party_id": document["party_id"],
@@ -149,8 +154,9 @@ def serialize_profit_order(document: dict) -> dict:
         "items": document["items"],
         "total_quantity_kg": document["total_quantity_kg"],
         "total_cost": document["total_cost"],
-        "total_sale": document["total_sale"],
-        "total_profit": document["total_profit"],
+        "total_sale": total_sale,
+        "total_profit": total_profit,
+        "margin_percent": document.get("margin_percent", round((total_profit / total_sale) * 100, 2) if total_sale else 0.0),
         "created_at": document["created_at"],
     }
 
@@ -381,7 +387,14 @@ def health_check():
 def login_page(request: Request):
     if is_authenticated(request):
         return RedirectResponse(url="/", status_code=303)
-    return FileResponse(FRONTEND_DIR / "login.html")
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {
+            "title": "Superuser Login",
+            "active_page": "login",
+        },
+    )
 
 
 @app.post("/login")
@@ -398,6 +411,18 @@ def login(request: Request, payload: LoginRequest):
         samesite="strict",
         secure=SESSION_COOKIE_SECURE,
         path="/",
+    )
+    return response
+
+
+@app.post("/logout")
+def logout():
+    response = JSONResponse({"status": "ok"})
+    response.delete_cookie(
+        key=AUTH_COOKIE_NAME,
+        path="/",
+        samesite="strict",
+        secure=SESSION_COOKIE_SECURE,
     )
     return response
 
@@ -661,6 +686,7 @@ def build_profit_order_document(payload: ProfitOrderCreate, *, created_at: Optio
         total_profit += line_profit
 
     now = utc_now()
+    margin_percent = (total_profit / total_sale) * 100 if total_sale else 0.0
     return {
         "party_id": str(party["_id"]),
         "party_name": party["name"],
@@ -669,6 +695,7 @@ def build_profit_order_document(payload: ProfitOrderCreate, *, created_at: Optio
         "total_cost": round(total_cost, 2),
         "total_sale": round(total_sale, 2),
         "total_profit": round(total_profit, 2),
+        "margin_percent": round(margin_percent, 2),
         "created_at": created_at or now,
         "updated_at": now,
     }
@@ -1074,23 +1101,51 @@ def restore_formulation(formulation_id: str):
 
 
 @app.get("/")
-def serve_dashboard():
-    return FileResponse(FRONTEND_DIR / "index.html")
+def serve_dashboard(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {
+            "title": "PVC Formulation Dashboard",
+            "active_page": "dashboard",
+        },
+    )
 
 
 @app.get("/materials-page")
-def serve_materials_page():
-    return FileResponse(FRONTEND_DIR / "materials.html")
+def serve_materials_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "materials.html",
+        {
+            "title": "Materials",
+            "active_page": "materials",
+        },
+    )
 
 
 @app.get("/add-formulation")
-def serve_add_formulation_page():
-    return FileResponse(FRONTEND_DIR / "add_formulation.html")
+def serve_add_formulation_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "add_formulation.html",
+        {
+            "title": "Add Formulation",
+            "active_page": "add-formulation",
+        },
+    )
 
 
 @app.get("/profit-calculator")
-def serve_profit_calculator_page():
-    return FileResponse(FRONTEND_DIR / "profit_calculator.html")
+def serve_profit_calculator_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "profit_calculator.html",
+        {
+            "title": "Profit Calculator",
+            "active_page": "profit-calculator",
+        },
+    )
 
 
 app.mount("/frontend", StaticFiles(directory=STATIC_DIR), name="frontend")

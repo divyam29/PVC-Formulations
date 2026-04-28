@@ -77,6 +77,12 @@ const api = {
     });
   },
 
+  logout() {
+    return this.request("/logout", {
+      method: "POST",
+    });
+  },
+
   updateProfitOrder(id, payload) {
     return this.request(`/profit-orders/${id}`, {
       method: "PUT",

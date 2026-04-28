@@ -50,6 +50,7 @@ async function initProfitCalculatorPage() {
     setText("orderTotalCost", currency(totalCost));
     setText("orderTotalSale", currency(totalSale));
     setText("orderTotalProfit", currency(totalProfit));
+    setText("orderMarginPercent", `${decimal(totalSale ? (totalProfit / totalSale) * 100 : 0)}%`);
   };
 
   const renderOrders = (orders) => {
@@ -66,6 +67,7 @@ async function initProfitCalculatorPage() {
               <div class="text-end small">
                 <div class="fw-semibold">${decimal(order.total_quantity_kg)} kg</div>
                 <div class="text-muted">Profit ${currency(order.total_profit)}</div>
+                <div class="text-muted">Margin ${decimal(order.margin_percent)}%</div>
               </div>
             </div>
             <div class="d-flex justify-content-end mb-3">
@@ -75,6 +77,7 @@ async function initProfitCalculatorPage() {
               <div><span>Total Cost</span><strong>${currency(order.total_cost)}</strong></div>
               <div><span>Total Sale</span><strong>${currency(order.total_sale)}</strong></div>
               <div><span>Total Profit</span><strong>${currency(order.total_profit)}</strong></div>
+              <div><span>Margin %</span><strong>${decimal(order.margin_percent)}%</strong></div>
               <div><span>Rows</span><strong>${order.items.length}</strong></div>
             </div>
             <div class="table-responsive">

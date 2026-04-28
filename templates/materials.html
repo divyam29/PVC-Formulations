@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block body_attrs %}data-page="materials"{% endblock %}
+
+{% block content %}
+  <main class="container py-4">
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <section class="panel-card p-4">
+          <div class="d-flex justify-content-between align-items-center gap-3 mb-3 section-header-wrap">
+            <h1 id="materialFormTitle" class="h4 mb-0">Add Material</h1>
+            <button id="cancelMaterialEdit" type="button" class="btn btn-outline-secondary btn-sm d-none">Cancel Edit</button>
+          </div>
+          <div id="materialsAlert" class="alert d-none" role="alert"></div>
+          <form id="materialForm" class="row g-3">
+            <div class="col-12">
+              <label for="materialName" class="form-label">Name</label>
+              <input id="materialName" class="form-control" required />
+            </div>
+            <div class="col-12">
+              <label for="unitPrice" class="form-label">Unit Price</label>
+              <input id="unitPrice" type="number" step="0.01" min="0" class="form-control" required />
+            </div>
+            <div class="col-6">
+              <label for="gst" class="form-label">GST %</label>
+              <input id="gst" type="number" step="0.01" min="0" class="form-control" required />
+            </div>
+            <div class="col-6">
+              <label for="extra" class="form-label">Extra</label>
+              <input id="extra" type="number" step="0.01" class="form-control" value="0" required />
+            </div>
+            <div class="col-12">
+              <button id="materialSubmitButton" type="submit" class="btn btn-primary w-100">Save Material</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <div class="col-lg-8">
+        <section class="panel-card p-4">
+          <div class="d-flex justify-content-between align-items-center gap-3 mb-4 section-header-wrap">
+            <div>
+              <h2 class="h4 mb-1">Materials List</h2>
+              <p class="text-muted mb-0">Material costs with auto-calculated amount per kg.</p>
+            </div>
+            <div class="d-flex gap-3 align-items-center flex-wrap">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="showArchivedMaterials" />
+                <label class="form-check-label" for="showArchivedMaterials">Show Archived</label>
+              </div>
+              <a id="exportMaterialsCsv" class="btn btn-outline-secondary" href="/exports/materials.csv">Export CSV</a>
+            </div>
+          </div>
+
+          <div id="materialsLoader" class="text-center py-5 d-none">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3 text-muted mb-0">Loading materials...</p>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Unit Price</th>
+                  <th>GST</th>
+                  <th>Extra</th>
+                  <th>Amount / Kg</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="materialsTableBody">
+                <tr>
+                  <td colspan="6" class="text-center text-muted py-5">No materials found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel-card p-4 mt-4">
+          <div class="d-flex justify-content-between align-items-center gap-3 mb-3 section-header-wrap">
+            <div>
+              <h2 class="h4 mb-1">Price Change Log</h2>
+              <p id="materialHistorySubtitle" class="text-muted mb-0">Select a material to view its price history.</p>
+            </div>
+          </div>
+          <div id="materialHistoryEmpty" class="text-muted py-4">Use the History button on a material to open its graph.</div>
+          <div id="materialHistoryPanel" class="d-none">
+            <div class="history-stats-grid mb-3">
+              <div class="history-stat-card">
+                <span>Latest Amount / Kg</span>
+                <strong id="historyLatestAmount">₹0.00</strong>
+              </div>
+              <div class="history-stat-card">
+                <span>Highest</span>
+                <strong id="historyHighestAmount">₹0.00</strong>
+              </div>
+              <div class="history-stat-card">
+                <span>Lowest</span>
+                <strong id="historyLowestAmount">₹0.00</strong>
+              </div>
+            </div>
+            <div class="history-chart-wrap mb-3">
+              <svg id="materialHistoryChart" class="history-chart" viewBox="0 0 640 220" preserveAspectRatio="none"></svg>
+            </div>
+            <div class="table-responsive">
+              <table class="table align-middle">
+                <thead>
+                  <tr>
+                    <th>Recorded At</th>
+                    <th>Unit Price</th>
+                    <th>GST</th>
+                    <th>Extra</th>
+                    <th>Amount / Kg</th>
+                  </tr>
+                </thead>
+                <tbody id="materialHistoryTableBody">
+                  <tr>
+                    <td colspan="5" class="text-center text-muted py-4">No history found.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/frontend/js/materials.js"></script>
+{% endblock %}

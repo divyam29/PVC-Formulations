@@ -74,6 +74,12 @@ body {
   transform: translateY(-1px);
 }
 
+.nav-link-button {
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
 .hero-card,
 .panel-card,
 .metric-card {

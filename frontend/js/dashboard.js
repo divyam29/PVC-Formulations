@@ -526,8 +526,8 @@ async function initDashboard() {
   showArchivedToggle.addEventListener("change", loadFormulations);
   compareFormulationA.addEventListener("change", renderComparison);
   compareFormulationB.addEventListener("change", renderComparison);
-  runWhatIfButton.addEventListener("click", runWhatIf);
-  resetWhatIfButton.addEventListener("click", () => renderWhatIf(selectedFormulation));
+  if (runWhatIfButton) runWhatIfButton.addEventListener("click", runWhatIf);
+  if (resetWhatIfButton) resetWhatIfButton.addEventListener("click", () => renderWhatIf(selectedFormulation));
   seasonFilterCheckboxes.forEach((checkbox) => {
     checkbox.addEventListener("change", () => {
       syncSeasonFilterSummary();

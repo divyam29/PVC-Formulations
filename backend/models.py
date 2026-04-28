@@ -219,6 +219,7 @@ class ProfitOrderRead(BaseModel):
     total_cost: float
     total_sale: float
     total_profit: float
+    margin_percent: float
     created_at: datetime
 
 

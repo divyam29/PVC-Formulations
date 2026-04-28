@@ -28,3 +28,20 @@ const setText = (id, value) => {
     element.textContent = value;
   }
 };
+
+const bindLogoutAction = () => {
+  document.querySelectorAll("[data-logout]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        await api.logout();
+      } catch (_) {
+        // Clear client state regardless and send the user to login.
+      } finally {
+        window.location.assign("/login");
+      }
+    });
+  });
+};
+
+document.addEventListener("DOMContentLoaded", bindLogoutAction);

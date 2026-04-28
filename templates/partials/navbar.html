@@ -1,0 +1,25 @@
+<nav class="navbar navbar-expand-lg navbar-dark app-navbar shadow-sm">
+  <div class="container">
+    <a class="navbar-brand fw-semibold" href="/">PVC Formulation ERP</a>
+    <button
+      class="navbar-toggler border-0"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#appNavbar"
+      aria-controls="appNavbar"
+      aria-expanded="false"
+      aria-label="Toggle navigation"
+    >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse app-navbar-collapse" id="appNavbar">
+      <div class="navbar-nav app-nav-links ms-auto gap-2">
+        <a class="nav-link{% if active_page == 'dashboard' %} active{% endif %}" href="/">Dashboard</a>
+        <a class="nav-link{% if active_page == 'profit-calculator' %} active{% endif %}" href="/profit-calculator">Profit Calculator</a>
+        <a class="nav-link{% if active_page == 'add-formulation' %} active{% endif %}" href="/add-formulation">Add Formulation</a>
+        <a class="nav-link{% if active_page == 'materials' %} active{% endif %}" href="/materials-page">Materials</a>
+        <button type="button" class="nav-link nav-link-button" data-logout>Logout</button>
+      </div>
+    </div>
+  </div>
+</nav>
