@@ -6,34 +6,57 @@
   <main class="container py-4">
     <div class="row g-4">
       <div class="col-lg-4">
-        <section class="panel-card p-4">
-          <div class="d-flex justify-content-between align-items-center gap-3 mb-3 section-header-wrap">
-            <h1 id="materialFormTitle" class="h4 mb-0">Add Material</h1>
-            <button id="cancelMaterialEdit" type="button" class="btn btn-outline-secondary btn-sm d-none">Cancel Edit</button>
-          </div>
-          <div id="materialsAlert" class="alert d-none" role="alert"></div>
-          <form id="materialForm" class="row g-3">
-            <div class="col-12">
-              <label for="materialName" class="form-label">Name</label>
-              <input id="materialName" class="form-control" required />
+        <div class="materials-sidebar d-grid gap-4">
+          <section class="panel-card p-4">
+            <div class="d-flex justify-content-between align-items-center gap-3 mb-3 section-header-wrap">
+              <h1 id="materialFormTitle" class="h4 mb-0">Add Material</h1>
+              <button id="cancelMaterialEdit" type="button" class="btn btn-outline-secondary btn-sm d-none">Cancel Edit</button>
             </div>
-            <div class="col-12">
-              <label for="unitPrice" class="form-label">Unit Price</label>
-              <input id="unitPrice" type="number" step="0.01" min="0" class="form-control" required />
+            <div id="materialsAlert" class="alert d-none" role="alert"></div>
+            <form id="materialForm" class="row g-3">
+              <div class="col-12">
+                <label for="materialName" class="form-label">Name</label>
+                <input id="materialName" class="form-control" required />
+              </div>
+              <div class="col-12">
+                <label for="unitPrice" class="form-label">Unit Price</label>
+                <input id="unitPrice" type="number" step="0.01" min="0" class="form-control" required />
+              </div>
+              <div class="col-6">
+                <label for="gst" class="form-label">GST %</label>
+                <input id="gst" type="number" step="0.01" min="0" class="form-control" required />
+              </div>
+              <div class="col-6">
+                <label for="extra" class="form-label">Extra</label>
+                <input id="extra" type="number" step="0.01" class="form-control" value="0" required />
+              </div>
+              <div class="col-12">
+                <button id="materialSubmitButton" type="submit" class="btn btn-primary w-100">Save Material</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel-card p-4 materials-helper-card">
+            <h2 class="h5 mb-2">Quick Reference</h2>
+            <p class="text-muted mb-3">Use this panel while updating raw-material pricing so the page feels anchored even when the history section grows.</p>
+            <div class="detail-items">
+              <div class="detail-item">
+                <div>
+                  <div class="fw-semibold">Amount / Kg</div>
+                  <div class="text-muted small">Calculated automatically</div>
+                </div>
+                <div class="text-end fw-semibold">Unit Price + GST + Extra</div>
+              </div>
+              <div class="detail-item">
+                <div>
+                  <div class="fw-semibold">History</div>
+                  <div class="text-muted small">Open from the materials list</div>
+                </div>
+                <div class="text-end fw-semibold">Tracks every price update</div>
+              </div>
             </div>
-            <div class="col-6">
-              <label for="gst" class="form-label">GST %</label>
-              <input id="gst" type="number" step="0.01" min="0" class="form-control" required />
-            </div>
-            <div class="col-6">
-              <label for="extra" class="form-label">Extra</label>
-              <input id="extra" type="number" step="0.01" class="form-control" value="0" required />
-            </div>
-            <div class="col-12">
-              <button id="materialSubmitButton" type="submit" class="btn btn-primary w-100">Save Material</button>
-            </div>
-          </form>
-        </section>
+          </section>
+        </div>
       </div>
 
       <div class="col-lg-8">

@@ -321,7 +321,7 @@ async function initDashboard() {
     setText("detailMisc", currency(item.misc));
     setText("detailFinalCost", currency(item.final_cost));
     setText("detailSalePrice", currency(item.sale_price));
-    setText("detailFixedProfit", currency(item.fixed_profit));
+    setText("detailProfit", currency(item.profit));
     setText("detailProfitPercentCost", `${decimal(item.profit_percent_cost)}%`);
     setText("detailProfitPercentSale", `${decimal(item.profit_percent_sale)}%`);
     const coatingItems = item.coating_items || [];
