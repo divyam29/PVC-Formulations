@@ -14,16 +14,29 @@
     <nav class="navbar navbar-expand-lg navbar-dark app-navbar shadow-sm">
       <div class="container">
         <a class="navbar-brand fw-semibold" href="/">PVC Formulation ERP</a>
-        <div class="navbar-nav app-nav-links ms-auto gap-2">
-          <a class="nav-link" href="/">Dashboard</a>
-          <a class="nav-link active" href="/profit-calculator">Profit Calculator</a>
-          <a class="nav-link" href="/add-formulation">Add Formulation</a>
-          <a class="nav-link" href="/materials-page">Materials</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#profitNavbar"
+          aria-controls="profitNavbar"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div id="profitNavbar" class="collapse navbar-collapse app-navbar-collapse">
+          <div class="navbar-nav app-nav-links ms-auto gap-2">
+            <a class="nav-link" href="/">Dashboard</a>
+            <a class="nav-link active" href="/profit-calculator">Profit Calculator</a>
+            <a class="nav-link" href="/add-formulation">Add Formulation</a>
+            <a class="nav-link" href="/materials-page">Materials</a>
+          </div>
         </div>
       </div>
     </nav>
 
-    <main class="container py-4">
+    <main class="container py-4 profit-page-main">
       <section class="hero-card p-4 p-lg-5 mb-4">
         <span class="badge text-bg-light text-uppercase tracking">Profit Orders</span>
         <h1 class="display-6 mt-3 mb-2">Profit calculator</h1>
@@ -58,7 +71,7 @@
                   <h3 class="h5 mb-0">Order Rows</h3>
                   <button id="addProfitOrderRow" type="button" class="btn btn-outline-primary btn-sm">Add Row</button>
                 </div>
-                <div id="profitOrderRows" class="d-grid gap-3"></div>
+                <div id="profitOrderRows" class="d-grid gap-3 profit-order-rows"></div>
               </div>
               <div class="col-12 d-flex gap-2 form-actions-wrap">
                 <button id="saveProfitOrder" type="submit" class="btn btn-primary">Save Order</button>
@@ -94,19 +107,24 @@
       </div>
 
       <section class="panel-card p-4 mt-4">
-        <div class="d-flex justify-content-between align-items-center gap-3 mb-4 section-header-wrap">
-          <div>
-            <h2 class="h4 mb-1">Saved Orders</h2>
-            <p class="text-muted mb-0">Recently saved profit orders with party-wise totals.</p>
+        <details class="dashboard-section-toggle">
+          <summary class="dashboard-section-summary section-header-wrap mb-0">
+            <div>
+              <h2 class="h4 mb-1">Saved Orders</h2>
+              <p class="text-muted mb-0">Recently saved profit orders with party-wise totals.</p>
+            </div>
+          </summary>
+          <div class="pt-4">
+            <div id="profitOrdersEmpty" class="text-muted py-4">No saved orders yet.</div>
+            <div id="profitOrdersList" class="d-grid gap-3 profit-orders-list"></div>
           </div>
-        </div>
-        <div id="profitOrdersEmpty" class="text-muted py-4">No saved orders yet.</div>
-        <div id="profitOrdersList" class="d-grid gap-3"></div>
+        </details>
       </section>
     </main>
 
     <script src="/frontend/js/common.js"></script>
     <script src="/frontend/js/api.js"></script>
     <script src="/frontend/js/profit_calculator.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>

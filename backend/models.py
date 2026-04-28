@@ -53,6 +53,16 @@ class PartyRead(BaseModel):
     created_at: datetime
 
 
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=120)
+    password: str = Field(..., min_length=1, max_length=240)
+
+    @field_validator("username", "password")
+    @classmethod
+    def normalize_credential(cls, value: str) -> str:
+        return value.strip()
+
+
 class FormulationItemCreate(BaseModel):
     material_id: str = Field(..., min_length=1)
     quantity: float = Field(..., gt=0)

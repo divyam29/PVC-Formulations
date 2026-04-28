@@ -1,14 +1,18 @@
 from datetime import datetime, timezone
 import csv
+from hmac import compare_digest
 import io
+import os
 from pathlib import Path
 import re
 from typing import Optional
 
 from bson import ObjectId
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from itsdangerous import BadSignature, URLSafeSerializer
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.database import (
@@ -27,6 +31,7 @@ from backend.models import (
     MaterialHistoryRead,
     MaterialCreate,
     MaterialRead,
+    LoginRequest,
     PartyRead,
     ProfitOrderCreate,
     ProfitOrderRead,
@@ -39,22 +44,79 @@ from backend.services.calculation import (
 
 app = FastAPI(title="PVC Formulation ERP", version="1.0.0")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+SUPERUSER_USERNAME = os.getenv("SUPERUSER_USERNAME", "").strip()
+SUPERUSER_PASSWORD = os.getenv("SUPERUSER_PASSWORD", "").strip()
+SESSION_SECRET = (os.getenv("SESSION_SECRET", "").strip() or f"{SUPERUSER_USERNAME}:{SUPERUSER_PASSWORD}:adinath-session")
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").strip().lower() == "true"
+ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if origin.strip()]
+AUTH_COOKIE_NAME = "adinath_auth"
+AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 2
+
+if not SUPERUSER_USERNAME or not SUPERUSER_PASSWORD:
+    raise RuntimeError("SUPERUSER_USERNAME and SUPERUSER_PASSWORD must be set in the environment.")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 STATIC_DIR = FRONTEND_DIR
+auth_serializer = URLSafeSerializer(SESSION_SECRET, salt="adinath-auth")
 
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
+
+def create_auth_token() -> str:
+    return auth_serializer.dumps({"username": SUPERUSER_USERNAME})
+
+
+def is_authenticated(request: Request) -> bool:
+    token = request.cookies.get(AUTH_COOKIE_NAME)
+    if not token:
+        return False
+
+    try:
+        payload = auth_serializer.loads(token)
+    except BadSignature:
+        return False
+
+    return bool(compare_digest(str(payload.get("username", "")), SUPERUSER_USERNAME))
+
+
+def apply_security_headers(response: Response) -> Response:
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "same-origin"
+    return response
+
+
+class AuthRequiredMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        public_paths = {"/login"}
+
+        if path in public_paths:
+            response = await call_next(request)
+        elif is_authenticated(request):
+            response = await call_next(request)
+        else:
+            accepts_html = "text/html" in request.headers.get("accept", "")
+            if request.method == "GET" and accepts_html:
+                return apply_security_headers(RedirectResponse(url="/login", status_code=303))
+            return apply_security_headers(JSONResponse({"detail": "Authentication required."}, status_code=401))
+
+        return apply_security_headers(response)
+
+
+app.add_middleware(AuthRequiredMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def serialize_material(document: dict) -> dict:
     return {
@@ -313,6 +375,31 @@ def csv_response(filename: str, rows: list[list]):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/login")
+def login_page(request: Request):
+    if is_authenticated(request):
+        return RedirectResponse(url="/", status_code=303)
+    return FileResponse(FRONTEND_DIR / "login.html")
+
+
+@app.post("/login")
+def login(request: Request, payload: LoginRequest):
+    if not compare_digest(payload.username, SUPERUSER_USERNAME) or not compare_digest(payload.password, SUPERUSER_PASSWORD):
+        raise HTTPException(status_code=401, detail="Invalid username or password.")
+
+    response = JSONResponse({"status": "ok"})
+    response.set_cookie(
+        key=AUTH_COOKIE_NAME,
+        value=create_auth_token(),
+        max_age=AUTH_COOKIE_MAX_AGE,
+        httponly=True,
+        samesite="strict",
+        secure=SESSION_COOKIE_SECURE,
+        path="/",
+    )
+    return response
 
 
 @app.post("/materials", response_model=MaterialRead, status_code=201)

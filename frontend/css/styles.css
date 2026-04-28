@@ -302,6 +302,15 @@ body {
   background: rgba(216, 236, 255, 0.45);
 }
 
+.profit-order-row .order-line-profit {
+  display: flex;
+  align-items: center;
+}
+
+.profit-orders-list .comparison-card {
+  overflow: hidden;
+}
+
 .history-chart-wrap {
   padding: 1rem;
   border-radius: 24px;
@@ -708,6 +717,10 @@ body {
   flex: 1 1 180px;
 }
 
+.profit-page-main .form-actions-wrap > .btn {
+  min-height: 48px;
+}
+
 .preview-panel {
   top: 1rem !important;
 }
@@ -716,6 +729,16 @@ body {
   border-radius: 18px;
   border: 1px solid rgba(18, 32, 51, 0.06);
   background: rgba(255, 255, 255, 0.4);
+}
+
+@media (max-width: 1199px) {
+  .profit-page-main .hero-card .lead {
+    max-width: none;
+  }
+
+  .profit-order-row {
+    padding: 0.9rem !important;
+  }
 }
 
 @media (max-width: 767px) {
@@ -779,6 +802,10 @@ body {
     width: 100%;
   }
 
+  .profit-page-main .form-actions-wrap > .btn {
+    flex: 0 0 auto;
+  }
+
   .detail-actions {
     justify-content: stretch;
   }
@@ -790,6 +817,39 @@ body {
 
   .table {
     font-size: 0.9rem;
+  }
+
+  .profit-order-row {
+    border-radius: 16px !important;
+    padding: 0.85rem !important;
+  }
+
+  .profit-order-row .row {
+    --bs-gutter-y: 0.75rem;
+  }
+
+  .profit-order-row .order-line-profit {
+    min-height: 44px;
+  }
+
+  .party-suggestions {
+    max-height: 220px;
+    padding: 0.4rem;
+    border-radius: 14px;
+  }
+
+  .party-suggestion-item {
+    padding: 0.65rem 0.75rem;
+    border-radius: 10px;
+  }
+
+  .profit-orders-list .comparison-card {
+    padding: 0.9rem;
+    border-radius: 18px;
+  }
+
+  .profit-page-main .panel-card .table-responsive {
+    border-radius: 14px;
   }
 
   .preview-grid {
@@ -845,5 +905,32 @@ body {
 
   .detail-actions {
     justify-content: flex-start;
+  }
+
+  .profit-page-main .row.g-4 {
+    --bs-gutter-y: 1rem;
+  }
+
+  .profit-page-main .hero-card,
+  .profit-page-main .panel-card {
+    border-radius: 22px;
+  }
+
+  .profit-page-main .section-header-wrap {
+    align-items: stretch !important;
+  }
+
+  .profit-page-main .section-header-wrap > .btn,
+  .profit-page-main .section-header-wrap > div {
+    width: 100%;
+  }
+
+  .profit-page-main .form-actions-wrap > .btn {
+    flex: 0 0 auto;
+  }
+
+  .profit-page-main .col-lg-8,
+  .profit-page-main .col-lg-4 {
+    width: 100%;
   }
 }
