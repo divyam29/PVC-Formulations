@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import csv
 import io
 from pathlib import Path
+import re
 from typing import Optional
 
 from bson import ObjectId
@@ -10,7 +11,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend.database import get_formulations_collection, get_materials_collection
+from backend.database import (
+    get_formulations_collection,
+    get_materials_collection,
+    get_parties_collection,
+    get_profit_orders_collection,
+)
 from backend.models import (
     FormulationWhatIfRequest,
     FormulationCreate,
@@ -21,6 +27,9 @@ from backend.models import (
     MaterialHistoryRead,
     MaterialCreate,
     MaterialRead,
+    PartyRead,
+    ProfitOrderCreate,
+    ProfitOrderRead,
 )
 from backend.services.calculation import (
     calculate_formulation_metrics,
@@ -59,6 +68,28 @@ def serialize_material(document: dict) -> dict:
         "updated_at": document.get("updated_at", document["created_at"]),
         "archived_at": document.get("archived_at"),
         "is_archived": bool(document.get("archived_at")),
+    }
+
+
+def serialize_party(document: dict) -> dict:
+    return {
+        "id": str(document["_id"]),
+        "name": document["name"],
+        "created_at": document["created_at"],
+    }
+
+
+def serialize_profit_order(document: dict) -> dict:
+    return {
+        "id": str(document["_id"]),
+        "party_id": document["party_id"],
+        "party_name": document["party_name"],
+        "items": document["items"],
+        "total_quantity_kg": document["total_quantity_kg"],
+        "total_cost": document["total_cost"],
+        "total_sale": document["total_sale"],
+        "total_profit": document["total_profit"],
+        "created_at": document["created_at"],
     }
 
 
@@ -475,6 +506,112 @@ def restore_material(material_id: str):
     return MaterialRead.model_validate(serialize_material(updated))
 
 
+def get_or_create_party(name: str) -> dict:
+    collection = get_parties_collection()
+    existing = collection.find_one({"name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}})
+    if existing:
+        return existing
+
+    now = utc_now()
+    document = {
+        "name": name,
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = collection.insert_one(document)
+    document["_id"] = result.inserted_id
+    return document
+
+
+@app.get("/parties", response_model=list[PartyRead])
+def list_parties(q: Optional[str] = Query(default=None)):
+    collection = get_parties_collection()
+    query = {"name": {"$regex": re.escape(q), "$options": "i"}} if q else {}
+    parties = collection.find(query).sort("name", 1).limit(12)
+    return [PartyRead.model_validate(serialize_party(party)) for party in parties]
+
+
+@app.post("/profit-orders", response_model=ProfitOrderRead, status_code=201)
+def create_profit_order(payload: ProfitOrderCreate):
+    document = build_profit_order_document(payload)
+    result = get_profit_orders_collection().insert_one(document)
+    document["_id"] = result.inserted_id
+    return ProfitOrderRead.model_validate(serialize_profit_order(document))
+
+
+def build_profit_order_document(payload: ProfitOrderCreate, *, created_at: Optional[datetime] = None) -> dict:
+    party = get_or_create_party(payload.party_name)
+    formulation_collection = get_formulations_collection()
+    items: list[dict] = []
+    total_quantity_kg = 0.0
+    total_cost = 0.0
+    total_sale = 0.0
+    total_profit = 0.0
+
+    for item in payload.items:
+        formulation = formulation_collection.find_one({"_id": parse_object_id(item.formulation_id, "formulation_id"), "archived_at": None})
+        if not formulation:
+            raise HTTPException(status_code=404, detail="Formulation not found for one of the order rows.")
+
+        formulation_data = build_formulation_response(formulation)
+        line_total_cost = formulation_data.final_cost * item.quantity_kg
+        line_total_sale = item.selling_price * item.quantity_kg
+        line_profit = line_total_sale - line_total_cost
+        order_item = {
+            "formulation_id": item.formulation_id,
+            "formulation_name": formulation_data.name,
+            "cost_price": formulation_data.final_cost,
+            "selling_price": item.selling_price,
+            "quantity_kg": item.quantity_kg,
+            "total_cost": round(line_total_cost, 2),
+            "total_sale": round(line_total_sale, 2),
+            "profit": round(line_profit, 2),
+        }
+        items.append(order_item)
+        total_quantity_kg += item.quantity_kg
+        total_cost += line_total_cost
+        total_sale += line_total_sale
+        total_profit += line_profit
+
+    now = utc_now()
+    return {
+        "party_id": str(party["_id"]),
+        "party_name": party["name"],
+        "items": items,
+        "total_quantity_kg": round(total_quantity_kg, 2),
+        "total_cost": round(total_cost, 2),
+        "total_sale": round(total_sale, 2),
+        "total_profit": round(total_profit, 2),
+        "created_at": created_at or now,
+        "updated_at": now,
+    }
+
+
+@app.get("/profit-orders", response_model=list[ProfitOrderRead])
+def list_profit_orders(party: Optional[str] = Query(default=None)):
+    collection = get_profit_orders_collection()
+    query = {"party_name": {"$regex": re.escape(party), "$options": "i"}} if party else {}
+    orders = collection.find(query).sort("created_at", -1)
+    return [ProfitOrderRead.model_validate(serialize_profit_order(order)) for order in orders]
+
+
+@app.put("/profit-orders/{order_id}", response_model=ProfitOrderRead)
+def update_profit_order(order_id: str, payload: ProfitOrderCreate):
+    collection = get_profit_orders_collection()
+    object_id = parse_object_id(order_id, "order_id")
+    existing = collection.find_one({"_id": object_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Profit order not found.")
+
+    updated_document = build_profit_order_document(
+        payload,
+        created_at=existing.get("created_at"),
+    )
+    collection.update_one({"_id": object_id}, {"$set": updated_document})
+    updated = collection.find_one({"_id": object_id})
+    return ProfitOrderRead.model_validate(serialize_profit_order(updated))
+
+
 @app.post("/formulations/preview", response_model=FormulationSummary)
 def preview_formulation(payload: FormulationPreviewRequest):
     material_ids = [item.material_id for item in payload.items]
@@ -862,6 +999,11 @@ def serve_materials_page():
 @app.get("/add-formulation")
 def serve_add_formulation_page():
     return FileResponse(FRONTEND_DIR / "add_formulation.html")
+
+
+@app.get("/profit-calculator")
+def serve_profit_calculator_page():
+    return FileResponse(FRONTEND_DIR / "profit_calculator.html")
 
 
 app.mount("/frontend", StaticFiles(directory=STATIC_DIR), name="frontend")

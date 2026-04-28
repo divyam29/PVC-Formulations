@@ -53,3 +53,11 @@ def get_materials_collection():
 
 def get_formulations_collection():
     return get_database()["formulations"]
+
+
+def get_parties_collection():
+    return get_database()["parties"]
+
+
+def get_profit_orders_collection():
+    return get_database()["profit_orders"]

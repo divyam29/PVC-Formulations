@@ -63,6 +63,34 @@ const api = {
     });
   },
 
+  getParties(q = "") {
+    const search = new URLSearchParams();
+    if (q) search.set("q", q);
+    const query = search.toString();
+    return this.request(`/parties${query ? `?${query}` : ""}`);
+  },
+
+  createProfitOrder(payload) {
+    return this.request("/profit-orders", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateProfitOrder(id, payload) {
+    return this.request(`/profit-orders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getProfitOrders(party = "") {
+    const search = new URLSearchParams();
+    if (party) search.set("party", party);
+    const query = search.toString();
+    return this.request(`/profit-orders${query ? `?${query}` : ""}`);
+  },
+
   getFormulations(filters = {}) {
     const search = new URLSearchParams();
     if (filters.type) search.set("type", filters.type);

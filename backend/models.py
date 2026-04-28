@@ -47,6 +47,12 @@ class MaterialHistoryRead(BaseModel):
     history: List[MaterialPriceHistoryEntry] = Field(default_factory=list)
 
 
+class PartyRead(BaseModel):
+    id: str
+    name: str
+    created_at: datetime
+
+
 class FormulationItemCreate(BaseModel):
     material_id: str = Field(..., min_length=1)
     quantity: float = Field(..., gt=0)
@@ -165,6 +171,45 @@ class FormulationSummary(BaseModel):
     profit: float
     profit_percent_cost: float
     profit_percent_sale: float
+
+
+class ProfitOrderItemCreate(BaseModel):
+    formulation_id: str = Field(..., min_length=1)
+    selling_price: float = Field(..., ge=0)
+    quantity_kg: float = Field(..., gt=0)
+
+
+class ProfitOrderCreate(BaseModel):
+    party_name: str = Field(..., min_length=1, max_length=160)
+    items: List[ProfitOrderItemCreate] = Field(..., min_length=1)
+
+    @field_validator("party_name")
+    @classmethod
+    def normalize_party_name(cls, value: str) -> str:
+        return value.strip()
+
+
+class ProfitOrderItemRead(BaseModel):
+    formulation_id: str
+    formulation_name: str
+    cost_price: float
+    selling_price: float
+    quantity_kg: float
+    total_cost: float
+    total_sale: float
+    profit: float
+
+
+class ProfitOrderRead(BaseModel):
+    id: str
+    party_id: str
+    party_name: str
+    items: List[ProfitOrderItemRead]
+    total_quantity_kg: float
+    total_cost: float
+    total_sale: float
+    total_profit: float
+    created_at: datetime
 
 
 class WhatIfItem(BaseModel):
